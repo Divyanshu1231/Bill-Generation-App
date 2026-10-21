@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: recruitment-invoice-manager
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: APP_SECRET
+        generateValue: true
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: DB_PATH
+        value: /tmp/invoices.db
+      - key: HTTPS_ONLY
+        value: "true"
