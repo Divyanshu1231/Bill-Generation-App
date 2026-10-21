@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -7,322 +6,104 @@
     <link rel="stylesheet" href="/static/style.css">
     <title>Recruitment Invoice Manager</title>
 </head>
-
 <body>
-
 <header>
     <div>
         <h1>Recruitment Invoice Manager</h1>
-        <small>
-            Signed in as {{ user.full_name or user.username }}
-            · {{ user.role }}
-        </small>
+        <small>Signed in as {{ user.full_name or user.username }} · {{ user.role }}</small>
     </div>
-
-    <form method="post" action="/logout">
-        <button type="submit" class="secondary">Logout</button>
-    </form>
+    <form method="post" action="/logout"><button type="submit" class="secondary">Logout</button></form>
 </header>
-
 <main>
-
-    <!-- Invoice List -->
-    <div class="toolbar">
-        <h2>Invoices</h2>
-        <a class="button" href="/export.csv">Export CSV</a>
-    </div>
-
+    <div class="toolbar"><h2>Invoices</h2><a class="button" href="/export.csv">Export CSV</a></div>
     <div class="table-wrap">
         <table>
-            <thead>
-                <tr>
-                    <th>Invoice / Voucher No.</th>
-                    <th>Date</th>
-                    <th>Seller</th>
-                    <th>Client</th>
-                    <th>Candidate</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-
+            <thead><tr><th>Voucher No.</th><th>Date</th><th>Seller</th><th>Client</th><th>Candidate</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
-                {% for i in invoices %}
-                <tr>
-                    <td>{{ i.invoice_no }}</td>
-                    <td>{{ i.invoice_date }}</td>
-                    <td>{{ i.seller_name }}</td>
-                    <td>{{ i.client_name }}</td>
-                    <td>{{ i.candidate_name }}</td>
-                    <td>₹{{ "{:,.2f}".format(i.amount or 0) }}</td>
-                    <td>{{ i.status }}</td>
-                    <td>
-                        <a href="/invoice/{{ i.id }}">View / Print</a>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="8">No invoices yet.</td>
-                </tr>
-                {% endfor %}
+            {% for i in invoices %}
+                <tr><td>{{ i.invoice_no }}</td><td>{{ i.invoice_date }}</td><td>{{ i.seller_name }}</td><td>{{ i.client_name }}</td><td>{{ i.candidate_name }}</td><td>₹{{ "{:,.2f}".format(i.amount or 0) }}</td><td>{{ i.status }}</td><td><a href="/invoice/{{ i.id }}">View / Print</a></td></tr>
+            {% else %}<tr><td colspan="8">No invoices yet.</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>
 
-
-    <!-- Create Invoice -->
     <section class="panel">
         <h2>Create Invoice</h2>
-
         <form method="post" action="/invoices" class="form-grid">
-
-            <label>
-                Invoice / Voucher No.
-                <input
-                    name="invoice_no"
-                    placeholder="Leave blank for automatic number"
-                >
-            </label>
-
-            <label>
-                Invoice Date
-                <input
-                    type="date"
-                    name="invoice_date"
-                    value="{{ today }}"
-                    required
-                >
-            </label>
-
-            <label>
-                Seller Profile
-                <select name="seller_id" required>
-                    <option value="">Select Seller</option>
-                    {% for s in sellers %}
-                    <option value="{{ s.id }}">{{ s.name }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-
-            <label>
-                Client / Hospital Name
-                <input name="client_name" required>
-            </label>
-
-            <label class="wide">
-                Client Address
-                <textarea name="client_address"></textarea>
-            </label>
-
-            <label>
-                Candidate Name
-                <input name="candidate_name" required>
-            </label>
-
-            <label>
-                Designation
-                <input name="designation">
-            </label>
-
-            <label>
-                Date of Joining
-                <input type="date" name="doj">
-            </label>
-
-            <label>
-                Monthly Salary (₹)
-                <input
-                    type="number"
-                    name="salary"
-                    min="0"
-                    step="0.01"
-                    value="0"
-                >
-            </label>
-
-            <label>
-                Service Description
-                <input
-                    name="description"
-                    value="Recruitment / Manpower Supply"
-                >
-            </label>
-
-            <label>
-                Amount to be Charged (₹)
-                <input
-                    type="number"
-                    name="amount"
-                    min="0"
-                    step="0.01"
-                    required
-                >
-            </label>
-
-            <div class="wide">
-                <button type="submit">Create Invoice</button>
-            </div>
-
+            <label>Voucher No.<input name="invoice_no" placeholder="Leave blank for automatic number"></label>
+            <label>Invoice Date<input type="date" name="invoice_date" value="{{ today }}" required></label>
+            <label>Seller Profile<select name="seller_id" required><option value="">Select Seller</option>{% for s in sellers %}{% if s.active %}<option value="{{ s.id }}">{{ s.name }}</option>{% endif %}{% endfor %}</select></label>
+            <label>Client / Hospital Name<input name="client_name" required></label>
+            <label class="wide">Client Address<textarea name="client_address"></textarea></label>
+            <label>Candidate Name<input name="candidate_name" required></label>
+            <label>Designation<input name="designation"></label>
+            <label>Date of Joining<input type="date" name="doj"></label>
+            <label>Monthly Salary (₹)<input type="number" name="salary" min="0" step="0.01" value="0"></label>
+            <label>Service Description<input name="description" value="Recruitment / Manpower Supply"></label>
+            <label>Amount to be Charged (₹)<input type="number" name="amount" min="0" step="0.01" required></label>
+            <div class="wide"><button type="submit">Create Invoice</button></div>
         </form>
     </section>
 
-
-    <!-- Admin-only Sections -->
     {% if user.role == 'admin' %}
-
     <div class="columns">
-
-        <!-- Add Seller -->
         <section class="panel">
             <h2>Add Seller Profile</h2>
-
-            <form
-                method="post"
-                action="/sellers"
-                class="form-grid"
-            >
-
-                <label>
-                    Seller Name
-                    <input name="name" required>
-                </label>
-
-                <label>
-                    Bank Name
-                    <input name="bank_name">
-                </label>
-
-                <label class="wide">
-                    Seller Address
-                    <textarea name="address"></textarea>
-                </label>
-
-                <label>
-                    Bank Account Number
-                    <input name="bank_account">
-                </label>
-
-                <label>
-                    IFSC Code
-                    <input name="ifsc">
-                </label>
-
-                <label>
-                    PAN Number
-                    <input name="pan">
-                </label>
-
-                <label>
-                    MSME Registration
-                    <input name="msme">
-                </label>
-
-                <label>
-                    Email
-                    <input type="email" name="email">
-                </label>
-
-                <label>
-                    Phone
-                    <input name="phone">
-                </label>
-
-                <div class="wide">
-                    <button type="submit">Add Seller</button>
-                </div>
-
+            <form method="post" action="/sellers" class="form-grid" enctype="multipart/form-data">
+                <label>Seller Name<input name="name" required></label>
+                <label>Bank Name<input name="bank_name"></label>
+                <label class="wide">Seller Address<textarea name="address"></textarea></label>
+                <label>Bank Account Number<input name="bank_account"></label>
+                <label>IFSC Code<input name="ifsc"></label>
+                <label>PAN Number<input name="pan"></label>
+                <label>MSME Registration<input name="msme"></label>
+                <label>Email<input type="email" name="email"></label>
+                <label>Phone<input name="phone"></label>
+                <label class="wide">QR Code Image (PNG, JPG, WEBP; max 3 MB)<input type="file" name="qr_file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"></label>
+                <div class="wide"><button type="submit">Add Seller</button></div>
             </form>
 
-            <h3>Seller Profiles</h3>
-
-            <ul>
-                {% for s in sellers %}
-                <li>
-                    <strong>{{ s.name }}</strong>
-                    · {{ s.bank_name or 'Bank not set' }}
-                    · {{ s.ifsc or 'IFSC not set' }}
-                </li>
-                {% else %}
-                <li>No seller profiles added yet.</li>
-                {% endfor %}
-            </ul>
+            <h3 id="seller-profiles">Seller Profiles (Edit / Delete)</h3>
+            {% for s in sellers %}
+            <details class="panel" style="margin:12px 0;">
+                <summary><strong>{{ s.name }}</strong> · {{ s.bank_name or 'Bank not set' }} · {{ s.ifsc or 'IFSC not set' }} · {{ 'Active' if s.active else 'Inactive' }}</summary>
+                <form method="post" action="/sellers/{{ s.id }}/edit" class="form-grid" enctype="multipart/form-data" style="margin-top:14px;">
+                    <label>Seller Name<input name="name" value="{{ s.name }}" required></label>
+                    <label>Bank Name<input name="bank_name" value="{{ s.bank_name or '' }}"></label>
+                    <label class="wide">Seller Address<textarea name="address">{{ s.address or '' }}</textarea></label>
+                    <label>Bank Account Number<input name="bank_account" value="{{ s.bank_account or '' }}"></label>
+                    <label>IFSC Code<input name="ifsc" value="{{ s.ifsc or '' }}"></label>
+                    <label>PAN Number<input name="pan" value="{{ s.pan or '' }}"></label>
+                    <label>MSME Registration<input name="msme" value="{{ s.msme or '' }}"></label>
+                    <label>Email<input type="email" name="email" value="{{ s.email or '' }}"></label>
+                    <label>Phone<input name="phone" value="{{ s.phone or '' }}"></label>
+                    {% if s.qr_code %}<div class="wide"><p>Current QR code:</p><img src="{{ s.qr_code }}" alt="Seller QR code" style="max-width:160px;max-height:160px;object-fit:contain"></div>{% endif %}
+                    <label class="wide">Replace QR Code (leave blank to keep current)<input type="file" name="qr_file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"></label>
+                    <div class="wide"><button type="submit">Save Seller Changes</button></div>
+                </form>
+                <form method="post" action="/sellers/{{ s.id }}/delete" onsubmit="return confirm('Delete/deactivate this seller profile?');" style="margin-top:8px;">
+                    <button type="submit" class="secondary">Delete Seller</button>
+                </form>
+                {% if s.active == 0 %}<p>This seller is inactive and cannot be selected for new invoices. Existing invoices remain linked.</p>{% endif %}
+            </details>
+            {% else %}<p>No seller profiles added yet.</p>{% endfor %}
         </section>
 
-
-        <!-- Create User -->
         <section class="panel">
             <h2>Create User</h2>
-
             <form method="post" action="/users">
-
-                <label>
-                    Full Name
-                    <input
-                        type="text"
-                        name="full_name"
-                        placeholder="Divyanshu Srivastava"
-                        required
-                    >
-                </label>
-
-                <label>
-                    Username
-                    <input
-                        type="text"
-                        name="username"
-                        placeholder="divyanshu"
-                        required
-                    >
-                </label>
-
-                <label>
-                    Password (minimum 8 characters)
-                    <input
-                        type="password"
-                        name="password"
-                        minlength="8"
-                        required
-                    >
-                </label>
-
-                <label>
-                    Role
-                    <select name="role">
-                        <option value="user">User</option>
-                        <option value="admin">Admin</option>
-                    </select>
-                </label>
-
+                <label>Full Name<input type="text" name="full_name" placeholder="Divyanshu Srivastava" required></label>
+                <label>Username<input type="text" name="username" placeholder="divyanshu" required></label>
+                <label>Password (minimum 8 characters)<input type="password" name="password" minlength="8" required></label>
+                <label>Role<select name="role"><option value="user">User</option><option value="admin">Admin</option></select></label>
                 <button type="submit">Create User</button>
             </form>
-
             <h3>Registered Users</h3>
-
-            <ul>
-                {% for usr in users %}
-                <li>
-                    {{ usr.full_name or usr.username }}
-                    ({{ usr.username }})
-                    — {{ usr.role }}
-                    — {{ 'Active' if usr.active else 'Inactive' }}
-                </li>
-                {% else %}
-                <li>No users found.</li>
-                {% endfor %}
-            </ul>
+            <ul>{% for usr in users %}<li>{{ usr.full_name or usr.username }} ({{ usr.username }}) — {{ usr.role }} — {{ 'Active' if usr.active else 'Inactive' }}</li>{% else %}<li>No users found.</li>{% endfor %}</ul>
         </section>
-
     </div>
-
     {% endif %}
-
-    <footer>
-        Recruitment Invoice Manager.
-        Keep database backups and protect seller bank details.
-    </footer>
-
+    <footer>Recruitment Invoice Manager. Keep database backups and protect seller bank details.</footer>
 </main>
-
 </body>
 </html>
