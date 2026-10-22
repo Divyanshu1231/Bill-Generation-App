@@ -3,6 +3,8 @@ import os
 import io
 import csv
 import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import hashlib
 import secrets
 import re
@@ -26,7 +28,9 @@ APP_SECRET = os.getenv(
     "local-development-secret-change-before-deployment"
 )
 
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 DB_PATH = os.getenv("DB_PATH", "./invoices.db")
+USE_POSTGRES = bool(DATABASE_URL)
 
 app = FastAPI(title="Recruitment Invoice Manager")
 
@@ -56,14 +60,130 @@ MAX_QR_BYTES = 3 * 1024 * 1024  # 3 MB
 # DATABASE
 # =========================================================
 
+
+class CompatCursor:
+    """Small compatibility wrapper so the existing SQLite-style app can use PostgreSQL."""
+    def __init__(self, cursor, lastrowid=None):
+        self._cursor = cursor
+        self.lastrowid = lastrowid
+
+    def fetchone(self):
+        row = self._cursor.fetchone()
+        return dict(row) if row is not None and not isinstance(row, dict) else row
+
+    def fetchall(self):
+        rows = self._cursor.fetchall()
+        return [dict(row) if not isinstance(row, dict) else row for row in rows]
+
+    def __iter__(self):
+        for row in self._cursor:
+            yield dict(row) if not isinstance(row, dict) else row
+
+    def rowcount(self):
+        return self._cursor.rowcount
+
+    @property
+    def description(self):
+        return self._cursor.description
+
+
+class CompatConnection:
+    def __init__(self, raw):
+        self.raw = raw
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        try:
+            if exc_type is None:
+                self.raw.commit()
+            else:
+                self.raw.rollback()
+        finally:
+            self.raw.close()
+        return False
+
+    def commit(self):
+        self.raw.commit()
+
+    def rollback(self):
+        self.raw.rollback()
+
+    def close(self):
+        self.raw.close()
+
+    def execute(self, sql, params=()):
+        # SQLite schema-inspection command translated to PostgreSQL metadata.
+        pragma = re.match(r"\s*PRAGMA\s+table_info\((\w+)\)\s*;?\s*$", sql, re.I)
+        if USE_POSTGRES and pragma:
+            table = pragma.group(1)
+            cur = self.raw.cursor(cursor_factory=RealDictCursor)
+            cur.execute(
+                """SELECT ordinal_position - 1 AS cid, column_name AS name,
+                          data_type AS type, 0 AS notnull, column_default AS dflt_value,
+                          CASE WHEN is_identity='YES' OR column_default LIKE 'nextval%%'
+                               THEN 1 ELSE 0 END AS pk
+                   FROM information_schema.columns
+                   WHERE table_schema = current_schema() AND table_name = %s
+                   ORDER BY ordinal_position""",
+                (table,)
+            )
+            return CompatCursor(cur)
+
+        if USE_POSTGRES:
+            query = sql.replace("?", "%s")
+            # Add RETURNING id for invoice inserts because the original code reads lastrowid.
+            invoice_insert = bool(re.match(r"\s*INSERT\s+INTO\s+invoices\s*\(", query, re.I))
+            if invoice_insert and "RETURNING" not in query.upper():
+                query = query.rstrip().rstrip(";") + " RETURNING id"
+            cur = self.raw.cursor(cursor_factory=RealDictCursor)
+            cur.execute(query, params or ())
+            lastrowid = None
+            if invoice_insert:
+                returned = cur.fetchone()
+                if returned:
+                    lastrowid = returned.get("id")
+            return CompatCursor(cur, lastrowid)
+
+        cur = self.raw.execute(sql, params or ())
+        return CompatCursor(cur, getattr(cur, "lastrowid", None))
+
+    def executescript(self, script):
+        if not USE_POSTGRES:
+            return self.raw.executescript(script)
+        cur = self.raw.cursor(cursor_factory=RealDictCursor)
+        # The schema script contains simple CREATE TABLE statements only.
+        statements = [part.strip() for part in script.split(";") if part.strip()]
+        for statement in statements:
+            statement = re.sub(
+                r"\bINTEGER\s+PRIMARY\s+KEY\b",
+                "SERIAL PRIMARY KEY",
+                statement,
+                flags=re.I
+            )
+            statement = statement.replace("REAL", "DOUBLE PRECISION")
+            cur.execute(statement)
+        return CompatCursor(cur)
+
+
 def connect():
+    if USE_POSTGRES:
+        if not DATABASE_URL:
+            raise RuntimeError("DATABASE_URL is missing")
+        url = DATABASE_URL
+        # Neon requires SSL; append it if the connection URL has no sslmode.
+        if "sslmode=" not in url:
+            url += ("&" if "?" in url else "?") + "sslmode=require"
+        raw = psycopg2.connect(url, connect_timeout=15)
+        return CompatConnection(raw)
+
     db_directory = os.path.dirname(os.path.abspath(DB_PATH))
     os.makedirs(db_directory, exist_ok=True)
-
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    raw = sqlite3.connect(DB_PATH, timeout=30)
+    raw.row_factory = sqlite3.Row
+    raw.execute("PRAGMA foreign_keys = ON")
+    return CompatConnection(raw)
 
 
 def hashpw(password):
@@ -424,7 +544,7 @@ def create_user(
             ))
             c.commit()
 
-    except sqlite3.IntegrityError:
+    except (sqlite3.IntegrityError, psycopg2.IntegrityError):
         raise HTTPException(
             status_code=400,
             detail="Username already exists"
@@ -646,7 +766,7 @@ def create_invoice(
 
             c.commit()
 
-        except sqlite3.IntegrityError:
+        except (sqlite3.IntegrityError, psycopg2.IntegrityError):
             raise HTTPException(
                 status_code=400,
                 detail="Invoice number already exists"
