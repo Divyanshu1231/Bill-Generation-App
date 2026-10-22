@@ -1,123 +1,95 @@
-@app.get("/invoice/{iid}", response_class=HTMLResponse)
-def invoice_view(
-    iid: int,
-    request: Request,
-    user=Depends(require_user)
-):
-    with connect() as c:
-        invoice = c.execute("""
-            SELECT
-                i.*,
-                s.name AS seller_name,
-                s.address AS seller_address,
-                s.bank_account,
-                s.bank_name,
-                s.ifsc,
-                s.pan,
-                s.msme,
-                s.email,
-                s.phone,
-                s.qr_code,
-                u.username,
-                u.full_name
-            FROM invoices i
-            JOIN sellers s ON s.id = i.seller_id
-            JOIN users u ON u.id = i.created_by
-            WHERE i.id = ?
-        """, (iid,)).fetchone()
 
-    if not invoice:
-        raise HTTPException(404, "Invoice not found")
+import os
+import io
+import csv
+import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import hashlib
+import secrets
+import re
 
-    if (
-        user["role"] != "admin"
-        and invoice["created_by"] != user["id"]
-    ):
-        raise HTTPException(403, "Not allowed")
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
-    return templates.TemplateResponse(request, "invoice.html", {
-            "user": user,
-            "i": invoice
-        
-        })
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, UploadFile, File
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
 
 
 # =========================================================
-# CSV EXPORT
-# Admin: all invoices
-# User: own invoices only
+# CONFIGURATION
 # =========================================================
 
-@app.get("/export.csv")
-def export_csv(user=Depends(require_user)):
-    with connect() as c:
-        query = """
-            SELECT
-                i.invoice_no,
-                i.invoice_date,
-                u.username AS created_by,
-                u.full_name AS created_by_name,
-                s.name AS seller_name,
-                s.address AS seller_address,
-                s.bank_account,
-                s.bank_name,
-                s.ifsc,
-                s.pan,
-                s.msme,
-                i.client_name,
-                i.client_address,
-                i.candidate_name,
-                i.designation,
-                i.doj,
-                i.salary,
-                i.description,
-                i.amount,
-                i.status,
-                i.updated_at
-            FROM invoices i
-            LEFT JOIN users u ON u.id = i.created_by
-            LEFT JOIN sellers s ON s.id = i.seller_id
-        """
+APP_SECRET = os.getenv(
+    "APP_SECRET",
+    "local-development-secret-change-before-deployment"
+)
 
-        if user["role"] != "admin":
-            query += " WHERE i.created_by = ?"
-            rows = c.execute(
-                query + " ORDER BY i.id DESC",
-                (user["id"],)
-            ).fetchall()
-        else:
-            rows = c.execute(
-                query + " ORDER BY i.id DESC"
-            ).fetchall()
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+DB_PATH = os.getenv("DB_PATH", "./invoices.db")
+USE_POSTGRES = bool(DATABASE_URL)
 
-    stream = io.StringIO()
-    writer = csv.writer(stream)
+app = FastAPI(title="Recruitment Invoice Manager")
 
-    if rows:
-        writer.writerow(rows[0].keys())
-        for row in rows:
-            writer.writerow([row[key] for key in row.keys()])
-    else:
-        writer.writerow([
-            "invoice_no",
-            "invoice_date",
-            "created_by",
-            "seller_name",
-            "client_name",
-            "candidate_name",
-            "doj",
-            "salary",
-            "amount",
-            "status"
-        ])
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=APP_SECRET,
+    https_only=os.getenv("HTTPS_ONLY", "false").lower() == "true",
+    same_site="lax"
+)
 
-    content = "\ufeff" + stream.getvalue()
+app.mount(
+    "/static",
+    StaticFiles(directory="app/static"),
+    name="static"
+)
 
-    return StreamingResponse(
-        iter([content]),
-        media_type="text/csv; charset=utf-8",
-        headers={
-            "Content-Disposition":
-                "attachment; filename=recruitment_invoices.csv"
-        }
-    )
+templates = Jinja2Templates(directory="app/templates")
+
+# QR images are stored under app/static/uploads. On Render Free this local
+# folder is ephemeral; use persistent object storage for permanent QR images.
+UPLOAD_DIR = os.path.join("app", "static", "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+MAX_QR_BYTES = 3 * 1024 * 1024  # 3 MB
+
+
+# =========================================================
+# DATABASE
+# =========================================================
+
+
+class CompatCursor:
+    """Small compatibility wrapper so the existing SQLite-style app can use PostgreSQL."""
+    def __init__(self, cursor, lastrowid=None):
+        self._cursor = cursor
+        self.lastrowid = lastrowid
+
+    def fetchone(self):
+        row = self._cursor.fetchone()
+        return dict(row) if row is not None and not isinstance(row, dict) else row
+
+    def fetchall(self):
+        rows = self._cursor.fetchall()
+        return [dict(row) if not isinstance(row, dict) else row for row in rows]
+
+    def __iter__(self):
+        for row in self._cursor:
+            yield dict(row) if not isinstance(row, dict) else row
+
+    def rowcount(self):
+        return self._cursor.rowcount
+
+    @property
+    def description(self):
+        return self._cursor.description
+
+
+class CompatConnection:
+    def __init__(self, raw):
+        self.raw = raw
+
+    def __enter__(self):
+        return self
