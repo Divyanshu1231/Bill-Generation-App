@@ -12,7 +12,7 @@ services:
         value: admin
       - key: ADMIN_PASSWORD
         sync: false
-      - key: DB_PATH
-        value: /tmp/invoices.db
+      - key: DATABASE_URL
+        sync: false
       - key: HTTPS_ONLY
         value: "true"
