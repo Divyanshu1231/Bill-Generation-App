@@ -21,7 +21,7 @@
             <thead><tr><th>Voucher No.</th><th>Date</th><th>Seller</th><th>Client</th><th>Candidate</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
             {% for i in invoices %}
-                <tr><td>{{ i.invoice_no }}</td><td>{{ i.invoice_date }}</td><td>{{ i.seller_name }}</td><td>{{ i.client_name }}</td><td>{{ i.candidate_name }}</td><td>₹{{ "{:,.2f}".format(i.amount or 0) }}</td><td>{{ i.status }}</td><td><a href="/invoice/{{ i.id }}">View / Print</a></td></tr>
+                <tr><td>{{ i.invoice_no }}</td><td>{{ i.invoice_date }}</td><td>{{ i.seller_name }}</td><td>{{ i.client_name }}</td><td>{{ i.candidate_name }}</td><td>₹{{ "{:,.2f}".format(i.amount or 0) }}</td><td>{{ i.status }}</td><td><a href="/invoice/{{ i.id }}">View / Print</a>{% if user.role == 'admin' %}<form method="post" action="/invoices/{{ i.id }}/delete" style="display:inline;margin-left:8px" onsubmit="return confirm('Permanently delete invoice {{ i.invoice_no }}? This cannot be undone.');"><button type="submit" class="secondary" style="background:#b91c1c;color:white;padding:6px 9px">Delete</button></form>{% endif %}</td></tr>
             {% else %}<tr><td colspan="8">No invoices yet.</td></tr>{% endfor %}
             </tbody>
         </table>
@@ -99,7 +99,8 @@
                 <button type="submit">Create User</button>
             </form>
             <h3>Registered Users</h3>
-            <ul>{% for usr in users %}<li>{{ usr.full_name or usr.username }} ({{ usr.username }}) — {{ usr.role }} — {{ 'Active' if usr.active else 'Inactive' }}</li>{% else %}<li>No users found.</li>{% endfor %}</ul>
+            <ul>{% for usr in users %}<li style="margin-bottom:10px">{{ usr.full_name or usr.username }} ({{ usr.username }}) — {{ usr.role }} — {{ 'Active' if usr.active else 'Inactive' }}{% if usr.id != user.id %}<form method="post" action="/users/{{ usr.id }}/delete" style="display:inline;margin-left:8px" onsubmit="return confirm('Delete user {{ usr.username }}? Users with linked invoices cannot be deleted until those invoices are removed.');"><button type="submit" class="secondary" style="background:#b91c1c;color:white;padding:5px 8px">Delete User</button></form>{% else %}<small>(current account)</small>{% endif %}</li>{% else %}<li>No users found.</li>{% endfor %}</ul>
+            <p><small>Safety: users linked to invoices are protected until their invoice records are deleted. The current admin account and last active admin cannot be deleted.</small></p>
         </section>
     </div>
     {% endif %}
