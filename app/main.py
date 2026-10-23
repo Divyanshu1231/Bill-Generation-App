@@ -576,6 +576,36 @@ def save_qr_upload(qr_file: UploadFile | None) -> str | None:
     return "/static/uploads/" + filename
 
 
+@app.post("/users/{user_id}/delete")
+def delete_user(user_id: int, user=Depends(require_user)):
+    """Admin-only user deletion. Protect current/last admin and invoice history."""
+    admin_only(user)
+    if int(user["id"]) == user_id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account while signed in")
+
+    with connect() as c:
+        target = c.execute("SELECT id, username, role FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not target:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        if target["role"] == "admin":
+            admins = c.execute("SELECT COUNT(*) AS n FROM users WHERE role = 'admin' AND active = 1").fetchone()
+            if admins and admins["n"] <= 1:
+                raise HTTPException(status_code=400, detail="Cannot delete the last active admin")
+
+        linked = c.execute("SELECT COUNT(*) AS n FROM invoices WHERE created_by = ?", (user_id,)).fetchone()
+        if linked and linked["n"] > 0:
+            raise HTTPException(
+                status_code=409,
+                detail="This user has invoices. Delete or reassign those invoices first; historical invoice records are protected."
+            )
+
+        c.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        c.commit()
+
+    return RedirectResponse("/", status_code=303)
+
+
 @app.post("/sellers")
 def create_seller(
     request: Request,
@@ -861,6 +891,21 @@ def edit_invoice(
 # =========================================================
 # VIEW / PRINT INVOICE
 # =========================================================
+
+@app.post("/invoices/{iid}/delete")
+def delete_invoice(iid: int, user=Depends(require_user)):
+    """Allow admins to permanently delete an invoice and its audit entries."""
+    admin_only(user)
+    with connect() as c:
+        invoice = c.execute("SELECT id FROM invoices WHERE id = ?", (iid,)).fetchone()
+        if not invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+        # Audit rows are not foreign-key cascaded in the existing schema.
+        c.execute("DELETE FROM audit WHERE invoice_id = ?", (iid,))
+        c.execute("DELETE FROM invoices WHERE id = ?", (iid,))
+        c.commit()
+    return RedirectResponse("/", status_code=303)
+
 
 @app.get("/invoice/{iid}", response_class=HTMLResponse)
 def invoice_view(
