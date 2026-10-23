@@ -8,6 +8,7 @@ from psycopg2.extras import RealDictCursor
 import hashlib
 import secrets
 import re
+import base64
 
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
@@ -49,10 +50,11 @@ app.mount(
 
 templates = Jinja2Templates(directory="app/templates")
 
-# QR images are stored under app/static/uploads. On Render Free this local
-# folder is ephemeral; use persistent object storage for permanent QR images.
+# QR images are stored as data URIs in the seller database record.
+# This keeps uploaded QR images available across Render deploys/restarts,
+# provided DATABASE_URL points to a persistent PostgreSQL database.
 UPLOAD_DIR = os.path.join("app", "static", "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(UPLOAD_DIR, exist_ok=True)  # legacy uploads / compatibility
 MAX_QR_BYTES = 3 * 1024 * 1024  # 3 MB
 
 
@@ -548,7 +550,7 @@ def create_user(
 # =========================================================
 
 def save_qr_upload(qr_file: UploadFile | None) -> str | None:
-    """Validate and save an optional QR image; return its static URL path."""
+    """Validate QR image and store it in the database as a durable data URI."""
     if not qr_file or not qr_file.filename:
         return None
     allowed = {".png", ".jpg", ".jpeg", ".webp"}
@@ -560,7 +562,8 @@ def save_qr_upload(qr_file: UploadFile | None) -> str | None:
         raise HTTPException(400, "QR image must be 3 MB or smaller")
     if not content:
         return None
-    # Check the image signature instead of trusting the extension alone.
+
+    # Verify the real image signature instead of trusting the extension alone.
     signatures = {
         ".png": content.startswith(b"\x89PNG\r\n\x1a\n"),
         ".jpg": content.startswith(b"\xff\xd8\xff"),
@@ -569,11 +572,17 @@ def save_qr_upload(qr_file: UploadFile | None) -> str | None:
     }
     if not signatures.get(ext, False):
         raise HTTPException(400, "Uploaded file does not appear to be a valid image")
-    filename = secrets.token_hex(16) + ext
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    with open(os.path.join(UPLOAD_DIR, filename), "wb") as f:
-        f.write(content)
-    return "/static/uploads/" + filename
+
+    mime_type = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+    }[ext]
+    encoded = base64.b64encode(content).decode("ascii")
+    # The existing sellers.qr_code TEXT column stores this value, so no schema
+    # change is needed. Browsers can display data URIs directly in <img src>.
+    return f"data:{mime_type};base64,{encoded}"
 
 
 @app.post("/users/{user_id}/delete")
