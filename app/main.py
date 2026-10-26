@@ -8,7 +8,6 @@ from psycopg2.extras import RealDictCursor
 import hashlib
 import secrets
 import re
-import base64
 
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
@@ -50,11 +49,10 @@ app.mount(
 
 templates = Jinja2Templates(directory="app/templates")
 
-# QR images are stored as data URIs in the seller database record.
-# This keeps uploaded QR images available across Render deploys/restarts,
-# provided DATABASE_URL points to a persistent PostgreSQL database.
+# QR images are stored under app/static/uploads. On Render Free this local
+# folder is ephemeral; use persistent object storage for permanent QR images.
 UPLOAD_DIR = os.path.join("app", "static", "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)  # legacy uploads / compatibility
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 MAX_QR_BYTES = 3 * 1024 * 1024  # 3 MB
 
 
@@ -235,6 +233,8 @@ def init_db():
                 description TEXT,
                 amount REAL,
                 status TEXT DEFAULT 'Draft',
+                remark TEXT DEFAULT '',
+                payment_status TEXT NOT NULL DEFAULT 'Due',
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(created_by) REFERENCES users(id),
                 FOREIGN KEY(seller_id) REFERENCES sellers(id)
@@ -263,6 +263,14 @@ def init_db():
         }
         if "qr_code" not in seller_columns:
             c.execute("ALTER TABLE sellers ADD COLUMN qr_code TEXT")
+
+        invoice_columns = {
+            row["name"] for row in c.execute("PRAGMA table_info(invoices)").fetchall()
+        }
+        if "remark" not in invoice_columns:
+            c.execute("ALTER TABLE invoices ADD COLUMN remark TEXT DEFAULT ''")
+        if "payment_status" not in invoice_columns:
+            c.execute("ALTER TABLE invoices ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'Due'")
 
         # Existing users initially use their username as full name.
         c.execute("""
@@ -550,7 +558,7 @@ def create_user(
 # =========================================================
 
 def save_qr_upload(qr_file: UploadFile | None) -> str | None:
-    """Validate QR image and store it in the database as a durable data URI."""
+    """Validate and save an optional QR image; return its static URL path."""
     if not qr_file or not qr_file.filename:
         return None
     allowed = {".png", ".jpg", ".jpeg", ".webp"}
@@ -562,8 +570,7 @@ def save_qr_upload(qr_file: UploadFile | None) -> str | None:
         raise HTTPException(400, "QR image must be 3 MB or smaller")
     if not content:
         return None
-
-    # Verify the real image signature instead of trusting the extension alone.
+    # Check the image signature instead of trusting the extension alone.
     signatures = {
         ".png": content.startswith(b"\x89PNG\r\n\x1a\n"),
         ".jpg": content.startswith(b"\xff\xd8\xff"),
@@ -572,17 +579,11 @@ def save_qr_upload(qr_file: UploadFile | None) -> str | None:
     }
     if not signatures.get(ext, False):
         raise HTTPException(400, "Uploaded file does not appear to be a valid image")
-
-    mime_type = {
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".webp": "image/webp",
-    }[ext]
-    encoded = base64.b64encode(content).decode("ascii")
-    # The existing sellers.qr_code TEXT column stores this value, so no schema
-    # change is needed. Browsers can display data URIs directly in <img src>.
-    return f"data:{mime_type};base64,{encoded}"
+    filename = secrets.token_hex(16) + ext
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    with open(os.path.join(UPLOAD_DIR, filename), "wb") as f:
+        f.write(content)
+    return "/static/uploads/" + filename
 
 
 @app.post("/users/{user_id}/delete")
@@ -901,6 +902,32 @@ def edit_invoice(
 # VIEW / PRINT INVOICE
 # =========================================================
 
+@app.post("/invoices/{iid}/payment-details")
+def update_invoice_payment_details(
+    iid: int,
+    remark: str = Form(""),
+    payment_status: str = Form("Due"),
+    user=Depends(require_user),
+):
+    """Allow admins to update invoice remarks and payment status."""
+    admin_only(user)
+    allowed_statuses = {"Due", "Not Due", "Received"}
+    if payment_status not in allowed_statuses:
+        raise HTTPException(status_code=400, detail="Invalid payment status")
+
+    remark = remark.strip()[:2000]
+    with connect() as c:
+        invoice = c.execute("SELECT id FROM invoices WHERE id = ?", (iid,)).fetchone()
+        if not invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+        c.execute(
+            "UPDATE invoices SET remark = ?, payment_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (remark, payment_status, iid),
+        )
+        c.commit()
+    return RedirectResponse("/#invoices", status_code=303)
+
+
 @app.post("/invoices/{iid}/delete")
 def delete_invoice(iid: int, user=Depends(require_user)):
     """Allow admins to permanently delete an invoice and its audit entries."""
@@ -991,6 +1018,8 @@ def export_csv(user=Depends(require_user)):
                 i.description,
                 i.amount,
                 i.status,
+                i.remark,
+                i.payment_status,
                 i.updated_at
             FROM invoices i
             LEFT JOIN users u ON u.id = i.created_by
@@ -1026,7 +1055,9 @@ def export_csv(user=Depends(require_user)):
             "doj",
             "salary",
             "amount",
-            "status"
+            "status",
+            "remark",
+            "payment_status"
         ])
 
     content = "\ufeff" + stream.getvalue()
