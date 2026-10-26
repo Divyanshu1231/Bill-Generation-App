@@ -15,14 +15,44 @@
     <form method="post" action="/logout"><button type="submit" class="secondary">Logout</button></form>
 </header>
 <main>
-    <div class="toolbar"><h2>Invoices</h2><a class="button" href="/export.csv">Export CSV</a></div>
+    <div class="toolbar" id="invoices"><h2>Invoices</h2><a class="button" href="/export.csv">Export CSV</a></div>
     <div class="table-wrap">
         <table>
-            <thead><tr><th>Voucher No.</th><th>Date</th><th>Seller</th><th>Client</th><th>Candidate</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>Voucher No.</th><th>Date</th><th>Seller</th><th>Client</th>
+                    <th>Candidate</th><th>Amount</th><th>Created By</th>
+                    <th>Remark</th><th>Payment Status</th><th>Invoice Status</th><th>Actions</th>
+                </tr>
+            </thead>
             <tbody>
             {% for i in invoices %}
-                <tr><td>{{ i.invoice_no }}</td><td>{{ i.invoice_date }}</td><td>{{ i.seller_name }}</td><td>{{ i.client_name }}</td><td>{{ i.candidate_name }}</td><td>₹{{ "{:,.2f}".format(i.amount or 0) }}</td><td>{{ i.status }}</td><td><a href="/invoice/{{ i.id }}">View / Print</a>{% if user.role == 'admin' %}<form method="post" action="/invoices/{{ i.id }}/delete" style="display:inline;margin-left:8px" onsubmit="return confirm('Permanently delete invoice {{ i.invoice_no }}? This cannot be undone.');"><button type="submit" class="secondary" style="background:#b91c1c;color:white;padding:6px 9px">Delete</button></form>{% endif %}</td></tr>
-            {% else %}<tr><td colspan="8">No invoices yet.</td></tr>{% endfor %}
+                <tr>
+                    <td>{{ i.invoice_no }}</td>
+                    <td>{{ i.invoice_date }}</td>
+                    <td>{{ i.seller_name }}</td>
+                    <td>{{ i.client_name }}</td>
+                    <td>{{ i.candidate_name }}</td>
+                    <td>₹{{ "{:,.2f}".format(i.amount or 0) }}</td>
+                    <td>{{ i.full_name or i.username or '—' }}</td>
+                    <td style="min-width:190px;white-space:normal;">
+                        {% if user.role == 'admin' %}
+                        <input form="payment-form-{{ i.id }}" type="text" name="remark" value="{{ i.remark or '' }}" maxlength="2000" placeholder="Add remark" aria-label="Remark for {{ i.invoice_no }}" style="width:100%;min-width:150px;padding:7px;border:1px solid #cbd5e1;border-radius:6px;">
+                        {% else %}{{ i.remark or '—' }}{% endif %}
+                    </td>
+                    <td>
+                        {% if user.role == 'admin' %}
+                        <select form="payment-form-{{ i.id }}" name="payment_status" aria-label="Payment status for {{ i.invoice_no }}" style="width:100%;min-width:110px;padding:7px;border:1px solid #cbd5e1;border-radius:6px;">
+                            <option value="Due" {% if (i.payment_status or 'Due') == 'Due' %}selected{% endif %}>Due</option>
+                            <option value="Not Due" {% if i.payment_status == 'Not Due' %}selected{% endif %}>Not Due</option>
+                            <option value="Received" {% if i.payment_status == 'Received' %}selected{% endif %}>Received</option>
+                        </select>
+                        {% else %}{{ i.payment_status or 'Due' }}{% endif %}
+                    </td>
+                    <td>{{ i.status }}</td>
+                    <td style="white-space:nowrap;"><a href="/invoice/{{ i.id }}" target="_blank" rel="noopener noreferrer">View / Print</a>{% if user.role == 'admin' %}<form id="payment-form-{{ i.id }}" method="post" action="/invoices/{{ i.id }}/payment-details" style="display:inline-block;margin:4px 4px 0 0"><button type="submit" style="padding:6px 9px;">Save</button></form><form method="post" action="/invoices/{{ i.id }}/delete" style="display:inline;margin-left:4px" onsubmit="return confirm('Permanently delete invoice {{ i.invoice_no }}? This cannot be undone.');"><button type="submit" class="secondary" style="background:#b91c1c;color:white;padding:6px 9px">Delete</button></form>{% endif %}</td>
+                </tr>
+            {% else %}<tr><td colspan="11">No invoices yet.</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>
