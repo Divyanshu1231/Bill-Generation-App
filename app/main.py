@@ -263,6 +263,8 @@ def init_db():
         }
         if "qr_code" not in seller_columns:
             c.execute("ALTER TABLE sellers ADD COLUMN qr_code TEXT")
+        if "company_logo" not in seller_columns:
+            c.execute("ALTER TABLE sellers ADD COLUMN company_logo TEXT")
 
         invoice_columns = {
             row["name"] for row in c.execute("PRAGMA table_info(invoices)").fetchall()
@@ -660,6 +662,7 @@ def edit_seller(
     email: str = Form(""),
     phone: str = Form(""),
     qr_file: UploadFile | None = File(None),
+    logo_file: UploadFile | None = File(None),
     user=Depends(require_user)
 ):
     admin_only(user)
@@ -668,12 +671,13 @@ def edit_seller(
         if not existing:
             raise HTTPException(404, "Seller profile not found")
         qr_code = save_qr_upload(qr_file) or existing["qr_code"]
+        company_logo = save_qr_upload(logo_file) or existing["company_logo"]
         c.execute("""
             UPDATE sellers SET name=?, address=?, bank_account=?, bank_name=?,
-                ifsc=?, pan=?, msme=?, email=?, phone=?, qr_code=?
+                ifsc=?, pan=?, msme=?, email=?, phone=?, qr_code=?, company_logo=?
             WHERE id=?
         """, (name.strip(), address, bank_account, bank_name, ifsc, pan,
-              msme, email, phone, qr_code, seller_id))
+              msme, email, phone, qr_code, company_logo, seller_id))
         c.commit()
     return RedirectResponse("/#seller-profiles", status_code=303)
 
@@ -963,6 +967,7 @@ def invoice_view(
                 s.email,
                 s.phone,
                 s.qr_code,
+                s.company_logo,
                 u.username,
                 u.full_name
             FROM invoices i
