@@ -1,105 +1,32 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ i.invoice_no }}</title>
-<link rel="stylesheet" href="/static/style.css">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/static/style.css"><title>{{ i.invoice_no }}</title>
 <style>
-*{box-sizing:border-box}
-body{margin:0;background:#f4f5f7;color:#222;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.3}
-.invoice{width:100%;max-width:900px;margin:18px auto;background:#fff;padding:22px;border:1px solid #d4d9df}
-.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
-.invoice-head{display:grid;grid-template-columns:1fr 1fr;gap:18px;border:1px solid #9aa9ba;padding:14px}
-.invoice-head section{min-width:0;overflow-wrap:anywhere}
-.invoice h3{font-size:18px;line-height:1.2;margin:3px 0 10px}
-.invoice p{margin:5px 0}
-.from-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:0 0 5px!important;color:#444}
-.voucher p{margin:0 0 10px}
-.billto{border:1px solid #9aa9ba;border-top:0;padding:12px 14px;margin:0}
-.billto p{margin:5px 0}
-.qr-wrap{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin:8px 0}
-.qr-wrap img{width:74px;height:74px;max-width:74px;max-height:74px;object-fit:contain}
-.qr-wrap p{font-size:11px;margin:0}
-.invoice table{width:100%;border-collapse:collapse;margin-top:8px;table-layout:fixed}
-.invoice th,.invoice td{border:1px solid #aeb6bf;padding:8px;text-align:left;vertical-align:top;overflow-wrap:anywhere}
-.invoice th{font-weight:700}
-.invoice th:last-child,.invoice td:last-child{width:25%}
-.invoice td p{margin:4px 0}
-.invoice .muted{margin-top:10px;font-size:10px}
-@media(max-width:600px){.invoice{margin:0;padding:12px}.invoice-head{gap:10px;padding:10px}.invoice h3{font-size:15px}.invoice th,.invoice td{padding:6px}}
-@page{size:A4 portrait;margin:8mm}
-@media print{
- html,body{width:100%;height:auto;background:#fff!important;margin:0!important;padding:0!important;font-size:9px;line-height:1.15;-webkit-print-color-adjust:exact;print-color-adjust:exact}
- .invoice{width:100%;max-width:none;margin:0;padding:0;border:0;box-shadow:none}
- .no-print{display:none!important}
- .invoice-head{gap:12px;padding:8px;border:1px solid #8d9bad;break-inside:avoid}
- .invoice h3{font-size:13px;margin:2px 0 6px}
- .invoice p{margin:3px 0}
- .from-label{font-size:9px;margin-bottom:3px!important}
- .voucher p{margin-bottom:6px}
- .billto{padding:7px 8px;break-inside:avoid}
- .qr-wrap{margin:4px 0;gap:6px;break-inside:avoid}
- .qr-wrap img{width:48px;height:48px;max-width:48px;max-height:48px}
- .qr-wrap p{font-size:8px}
- .invoice table{margin-top:5px;break-inside:avoid}
- .invoice tr{break-inside:avoid;page-break-inside:avoid}
- .invoice th,.invoice td{padding:5px;font-size:9px}
- .invoice td p{margin:2px 0}
- .invoice .muted{margin-top:6px;font-size:8px}
-}
+.invoice{max-width:900px;margin:24px auto;background:#fff;padding:34px;color:#222}
+.invoice-head{display:flex;justify-content:space-between;gap:28px;border-bottom:1px solid #bbb;padding-bottom:18px}
+.invoice-head section{flex:1;min-width:0}.seller-logo{max-width:170px;max-height:85px;object-fit:contain;margin-bottom:10px}.billto{margin:22px 0}.invoice table{width:100%;border-collapse:collapse;margin-top:18px}.invoice th,.invoice td{border:1px solid #bbb;padding:12px;text-align:left;vertical-align:top}.invoice .muted{margin-top:28px;font-size:14px}.qr-wrap{text-align:right;margin-top:16px}.qr-wrap img{max-width:140px;max-height:140px;object-fit:contain}
+@media print{body{background:#fff}.invoice{margin:0;max-width:none;padding:12mm}.no-print{display:none!important}}
 </style>
 </head>
-<body>
-<main class="invoice">
-  <div class="no-print toolbar"><a href="/">← Dashboard</a><button onclick="window.print()">Print / Save as PDF</button></div>
-
-  <div class="invoice-head">
-    <section>
-      <p class="from-label">From</p>
-      <h3>{{ i.seller_name }}</h3>
-      <p>{{ i.seller_address or '' }}</p>
-      {% if i.email %}<p>Email: {{ i.email }}</p>{% endif %}
-      {% if i.phone %}<p>Phone: {{ i.phone }}</p>{% endif %}
-      {% if i.pan %}<p>PAN: {{ i.pan }}</p>{% endif %}
-      {% if i.msme %}<p>MSME: {{ i.msme }}</p>{% endif %}
-      {% if i.bank_name %}<p>Bank: {{ i.bank_name }}</p>{% endif %}
-      {% if i.bank_account %}<p>Account No.: {{ i.bank_account }}</p>{% endif %}
-      {% if i.ifsc %}<p>IFSC: {{ i.ifsc }}</p>{% endif %}
-    </section>
-    <section class="voucher">
-      <p><b>Voucher No.</b><br>{{ i.invoice_no }}</p>
-      <p><b>Date</b><br>{{ i.invoice_date }}</p>
-      <p><b>Created by</b><br>{{ i.full_name or i.username }}</p>
-    </section>
-  </div>
-
-  {% if i.qr_code %}<div class="qr-wrap"><img src="{{ i.qr_code }}" alt="Seller QR code"><p>Scan to pay</p></div>{% endif %}
-
-  <section class="billto">
-    <b>Client / Hospital</b>
-    <p>{{ i.client_name }}</p>
-    <p>{{ i.client_address or '' }}</p>
-  </section>
-
-  <table>
-    <thead><tr><th>Description of Services</th><th>Amount</th></tr></thead>
-    <tbody>
-      <tr>
-        <td>
-          <b>{{ i.description }}</b>
-          <p>Candidate name: {{ i.candidate_name }}</p>
-          <p>Designation: {{ i.designation or '—' }}</p>
-          <p>Monthly salary: ₹{{ "{:,.2f}".format(i.salary or 0) }}</p>
-          <p>Date of Joining (DOJ): {{ i.doj or '—' }}</p>
-        </td>
-        <td>₹{{ "{:,.2f}".format(i.amount or 0) }}</td>
-      </tr>
-      <tr><th>Total</th><th>₹{{ "{:,.2f}".format(i.amount or 0) }}</th></tr>
-    </tbody>
-  </table>
-
-  <p class="muted">This is a computer-generated estimate and does not require a signature.</p>
-</main>
-</body>
-</html>
+<body><main class="invoice">
+<div class="no-print toolbar"><a href="/">← Dashboard</a><button onclick="window.print()">Print / Save as PDF</button></div>
+<div class="invoice-head">
+<section>
+{% if i.company_logo %}<img class="seller-logo" src="{{ i.company_logo }}" alt="Company logo">{% endif %}
+<h3>{{ i.seller_name }}</h3><p>{{ i.seller_address or '' }}</p>
+{% if i.email %}<p>Email: {{ i.email }}</p>{% endif %}{% if i.phone %}<p>Phone: {{ i.phone }}</p>{% endif %}
+{% if i.pan %}<p>PAN: {{ i.pan }}</p>{% endif %}{% if i.msme %}<p>MSME: {{ i.msme }}</p>{% endif %}
+<p>Bank: {{ i.bank_name or '' }}</p><p>Account No.: {{ i.bank_account or '' }}</p><p>IFSC: {{ i.ifsc or '' }}</p>
+</section>
+<section><p><b>Voucher No.</b><br>{{ i.invoice_no }}</p><p><b>Date</b><br>{{ i.invoice_date }}</p><p><b>Created by</b><br>{{ i.full_name or i.username }}</p></section>
+</div>
+{% if i.qr_code %}<div class="qr-wrap"><img src="{{ i.qr_code }}" alt="Seller QR code"><p>Scan to pay</p></div>{% endif %}
+<section class="billto"><b>To</b><p><b>Client / Hospital</b></p><p>{{ i.client_name }}</p><p>{{ i.client_address or '' }}</p></section>
+<table><thead><tr><th>Description of Services / Invoice Details</th><th>Amount</th></tr></thead><tbody>
+<tr><td><b>{{ i.description }}</b><p>Candidate name: {{ i.candidate_name }}</p><p>Designation: {{ i.designation or '—' }}</p><p>Monthly salary: ₹{{ "{:,.2f}".format(i.salary or 0) }}</p><p>Date of Joining (DOJ): {{ i.doj or '—' }}</p></td><td>₹{{ "{:,.2f}".format(i.amount or 0) }}</td></tr>
+<tr><th>Total</th><th>₹{{ "{:,.2f}".format(i.amount or 0) }}</th></tr>
+</tbody></table>
+<p class="muted">This is computer generated estimate and is not required signature.</p>
+</main></body></html>
