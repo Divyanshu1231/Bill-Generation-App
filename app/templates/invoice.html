@@ -1,32 +1,486 @@
+
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="/static/style.css"><title>{{ i.invoice_no }}</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ i.invoice_no }}</title>
+
 <style>
-.invoice{max-width:900px;margin:24px auto;background:#fff;padding:34px;color:#222}
-.invoice-head{display:flex;justify-content:space-between;gap:28px;border-bottom:1px solid #bbb;padding-bottom:18px}
-.invoice-head section{flex:1;min-width:0}.seller-logo{max-width:170px;max-height:85px;object-fit:contain;margin-bottom:10px}.billto{margin:22px 0}.invoice table{width:100%;border-collapse:collapse;margin-top:18px}.invoice th,.invoice td{border:1px solid #bbb;padding:12px;text-align:left;vertical-align:top}.invoice .muted{margin-top:28px;font-size:14px}.qr-wrap{text-align:right;margin-top:16px}.qr-wrap img{max-width:140px;max-height:140px;object-fit:contain}
-@media print{body{background:#fff}.invoice{margin:0;max-width:none;padding:12mm}.no-print{display:none!important}}
+* {
+    box-sizing: border-box;
+}
+
+@page {
+    size: A4;
+    margin: 9mm;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background: #f1f4f9;
+    color: #263247;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.invoice {
+    width: 100%;
+    max-width: 850px;
+    margin: 25px auto;
+    padding: 30px;
+    background: #fff;
+    border: 1px solid #e3e8f0;
+    box-shadow: 0 5px 25px rgba(20, 40, 75, .08);
+}
+
+.no-print {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.no-print a,
+.no-print button {
+    padding: 9px 16px;
+    border-radius: 6px;
+    border: 0;
+    text-decoration: none;
+    background: #17365d;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.invoice-head {
+    display: grid;
+    grid-template-columns: 1.4fr 0.8fr;
+    gap: 24px;
+    padding-bottom: 17px;
+    border-bottom: 3px solid #17365d;
+}
+
+.seller-section {
+    min-width: 0;
+}
+
+.seller-logo {
+    display: block;
+    max-width: 135px;
+    max-height: 65px;
+    object-fit: contain;
+    margin-bottom: 8px;
+}
+
+.seller-section h2 {
+    margin: 0 0 8px;
+    color: #17365d;
+    font-size: 19px;
+    line-height: 1.25;
+}
+
+.seller-section p {
+    margin: 3px 0;
+    font-size: 11px;
+    overflow-wrap: anywhere;
+}
+
+.voucher-section {
+    padding: 13px 15px;
+    background: #f2f6fc;
+    border: 1px solid #dce5f1;
+    border-radius: 7px;
+}
+
+.voucher-title {
+    margin: 0 0 12px;
+    color: #17365d;
+    font-size: 17px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+
+.voucher-item {
+    margin-bottom: 10px;
+}
+
+.voucher-item:last-child {
+    margin-bottom: 0;
+}
+
+.voucher-item strong {
+    display: block;
+    color: #52647b;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
+
+.voucher-item span {
+    display: block;
+    margin-top: 2px;
+    color: #172b45;
+    font-size: 12px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.bill-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 15px;
+    margin: 19px 0;
+    padding: 13px 15px;
+    background: #f8fafc;
+    border: 1px solid #e1e8f0;
+    border-left: 4px solid #17365d;
+    border-radius: 5px;
+}
+
+.billto {
+    flex: 1;
+    min-width: 0;
+}
+
+.section-label {
+    margin: 0 0 7px;
+    color: #17365d;
+    font-size: 10px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+}
+
+.billto p {
+    margin: 3px 0;
+    overflow-wrap: anywhere;
+}
+
+.client-name {
+    font-size: 14px;
+    font-weight: bold;
+    color: #172b45;
+}
+
+.qr-wrap {
+    width: 105px;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+.qr-wrap img {
+    width: 85px;
+    height: 85px;
+    object-fit: contain;
+}
+
+.qr-wrap p {
+    margin: 2px 0 0;
+    font-size: 9px;
+    color: #64748b;
+}
+
+.invoice-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    table-layout: fixed;
+}
+
+.invoice-table th {
+    padding: 10px;
+    background: #17365d;
+    color: #fff;
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+}
+
+.invoice-table th:last-child,
+.invoice-table td:last-child {
+    width: 25%;
+    text-align: right;
+}
+
+.invoice-table td {
+    padding: 10px;
+    border: 1px solid #dce3ec;
+    vertical-align: top;
+}
+
+.description-title {
+    color: #17365d;
+    font-weight: bold;
+    font-size: 13px;
+    margin-bottom: 7px;
+}
+
+.detail-line {
+    margin: 4px 0;
+    font-size: 11px;
+}
+
+.amount {
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.total-row th {
+    padding: 11px 10px;
+    background: #eaf1fa;
+    color: #17365d;
+    border: 1px solid #d5dfed;
+    font-size: 13px;
+}
+
+.total-row th:last-child {
+    text-align: right;
+}
+
+.footer-note {
+    margin-top: 17px;
+    padding-top: 10px;
+    border-top: 1px solid #e1e7ef;
+    color: #64748b;
+    font-size: 10px;
+    text-align: center;
+}
+
+@media print {
+    html, body {
+        width: 100%;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        font-size: 10px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .invoice {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        box-shadow: none;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .invoice-head,
+    .bill-section,
+    .invoice-table,
+    .footer-note {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .invoice-table tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .invoice-head {
+        gap: 15px;
+        padding-bottom: 12px;
+    }
+
+    .seller-section h2 {
+        font-size: 16px;
+    }
+
+    .seller-section p,
+    .detail-line {
+        font-size: 9px;
+    }
+
+    .voucher-section {
+        padding: 10px;
+    }
+
+    .bill-section {
+        margin: 12px 0;
+        padding: 10px;
+    }
+
+    .invoice-table {
+        margin-top: 10px;
+    }
+
+    .invoice-table th,
+    .invoice-table td {
+        padding: 8px;
+    }
+
+    .footer-note {
+        margin-top: 12px;
+    }
+}
 </style>
 </head>
-<body><main class="invoice">
-<div class="no-print toolbar"><a href="/">← Dashboard</a><button onclick="window.print()">Print / Save as PDF</button></div>
-<div class="invoice-head">
-<section>
-{% if i.company_logo %}<img class="seller-logo" src="{{ i.company_logo }}" alt="Company logo">{% endif %}
-<h3>{{ i.seller_name }}</h3><p>{{ i.seller_address or '' }}</p>
-{% if i.email %}<p>Email: {{ i.email }}</p>{% endif %}{% if i.phone %}<p>Phone: {{ i.phone }}</p>{% endif %}
-{% if i.pan %}<p>PAN: {{ i.pan }}</p>{% endif %}{% if i.msme %}<p>MSME: {{ i.msme }}</p>{% endif %}
-<p>Bank: {{ i.bank_name or '' }}</p><p>Account No.: {{ i.bank_account or '' }}</p><p>IFSC: {{ i.ifsc or '' }}</p>
-</section>
-<section><p><b>Voucher No.</b><br>{{ i.invoice_no }}</p><p><b>Date</b><br>{{ i.invoice_date }}</p><p><b>Created by</b><br>{{ i.full_name or i.username }}</p></section>
+
+<body>
+
+<main class="invoice">
+
+<div class="no-print">
+    <a href="/">← Dashboard</a>
+    <button onclick="window.print()">Print / Save as PDF</button>
 </div>
-{% if i.qr_code %}<div class="qr-wrap"><img src="{{ i.qr_code }}" alt="Seller QR code"><p>Scan to pay</p></div>{% endif %}
-<section class="billto"><b>To</b><p><b>Client / Hospital</b></p><p>{{ i.client_name }}</p><p>{{ i.client_address or '' }}</p></section>
-<table><thead><tr><th>Description of Services / Invoice Details</th><th>Amount</th></tr></thead><tbody>
-<tr><td><b>{{ i.description }}</b><p>Candidate name: {{ i.candidate_name }}</p><p>Designation: {{ i.designation or '—' }}</p><p>Monthly salary: ₹{{ "{:,.2f}".format(i.salary or 0) }}</p><p>Date of Joining (DOJ): {{ i.doj or '—' }}</p></td><td>₹{{ "{:,.2f}".format(i.amount or 0) }}</td></tr>
-<tr><th>Total</th><th>₹{{ "{:,.2f}".format(i.amount or 0) }}</th></tr>
-</tbody></table>
-<p class="muted">This is computer generated estimate and is not required signature.</p>
-</main></body></html>
+
+<div class="invoice-head">
+
+    <section class="seller-section">
+
+        {% if i.company_logo %}
+        <img class="seller-logo"
+             src="{{ i.company_logo }}"
+             alt="Company Logo">
+        {% endif %}
+
+        <h2>{{ i.seller_name }}</h2>
+
+        {% if i.seller_address %}
+        <p>{{ i.seller_address }}</p>
+        {% endif %}
+
+        {% if i.email %}
+        <p><b>Email:</b> {{ i.email }}</p>
+        {% endif %}
+
+        {% if i.phone %}
+        <p><b>Phone:</b> {{ i.phone }}</p>
+        {% endif %}
+
+        {% if i.pan %}
+        <p><b>PAN:</b> {{ i.pan }}</p>
+        {% endif %}
+
+        {% if i.msme %}
+        <p><b>MSME:</b> {{ i.msme }}</p>
+        {% endif %}
+
+        {% if i.bank_name %}
+        <p><b>Bank:</b> {{ i.bank_name }}</p>
+        {% endif %}
+
+        {% if i.bank_account %}
+        <p><b>Account No.:</b> {{ i.bank_account }}</p>
+        {% endif %}
+
+        {% if i.ifsc %}
+        <p><b>IFSC:</b> {{ i.ifsc }}</p>
+        {% endif %}
+
+    </section>
+
+    <section class="voucher-section">
+
+        <p class="voucher-title">Invoice</p>
+
+        <div class="voucher-item">
+            <strong>Voucher No.</strong>
+            <span>{{ i.invoice_no }}</span>
+        </div>
+
+        <div class="voucher-item">
+            <strong>Date</strong>
+            <span>{{ i.invoice_date }}</span>
+        </div>
+
+        <div class="voucher-item">
+            <strong>Created By</strong>
+            <span>{{ i.full_name or i.username }}</span>
+        </div>
+
+    </section>
+
+</div>
+
+<section class="bill-section">
+
+    <div class="billto">
+        <p class="section-label">To</p>
+        <p><b>Client / Hospital</b></p>
+        <p class="client-name">{{ i.client_name }}</p>
+        {% if i.client_address %}
+        <p>{{ i.client_address }}</p>
+        {% endif %}
+    </div>
+
+    {% if i.qr_code %}
+    <div class="qr-wrap">
+        <img src="{{ i.qr_code }}" alt="Payment QR Code">
+        <p>Scan to Pay</p>
+    </div>
+    {% endif %}
+
+</section>
+
+<table class="invoice-table">
+
+    <thead>
+        <tr>
+            <th>Description of Services</th>
+            <th>Amount</th>
+        </tr>
+    </thead>
+
+    <tbody>
+
+        <tr>
+            <td>
+                <div class="description-title">
+                    {{ i.description }}
+                </div>
+
+                <p class="detail-line">
+                    <b>Candidate Name:</b> {{ i.candidate_name }}
+                </p>
+
+                <p class="detail-line">
+                    <b>Designation:</b> {{ i.designation or '—' }}
+                </p>
+
+                <p class="detail-line">
+                    <b>Monthly Salary:</b>
+                    ₹{{ "{:,.2f}".format(i.salary or 0) }}
+                </p>
+
+                <p class="detail-line">
+                    <b>Date of Joining (DOJ):</b> {{ i.doj or '—' }}
+                </p>
+            </td>
+
+            <td class="amount">
+                ₹{{ "{:,.2f}".format(i.amount or 0) }}
+            </td>
+        </tr>
+
+        <tr class="total-row">
+            <th>Total</th>
+            <th>
+                ₹{{ "{:,.2f}".format(i.amount or 0) }}
+            </th>
+        </tr>
+
+    </tbody>
+
+</table>
+
+<p class="footer-note">
+    This is a computer-generated document and does not require a signature.
+</p>
+
+</main>
+
+</body>
+</html>
