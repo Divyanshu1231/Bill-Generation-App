@@ -139,7 +139,7 @@
             </form>
 
             <h2>Create User</h2>
-            <form method="post" action="/users">
+            <form method="post" action="/users" class="create-user-form">
                 <label>Full Name<input type="text" name="full_name" placeholder="Divyanshu Srivastava" required></label>
                 <label>Username<input type="text" name="username" placeholder="divyanshu" required></label>
                 <label>Password (minimum 8 characters)<span class="password-field"><input id="create-user-password" type="password" name="password" minlength="8" required><button type="button" class="secondary password-toggle" data-target="create-user-password">Show</button></span></label>
@@ -175,12 +175,130 @@
 </main>
 
 <style>
-.password-field{display:flex;align-items:stretch;gap:5px;min-width:190px}
-.password-field input{flex:1;min-width:0}
-.password-toggle{white-space:nowrap;padding:6px 9px!important;font-size:12px}
-.password-change-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;align-items:end}
-.password-change-form label{display:block}
-@media(max-width:700px){.password-field{min-width:170px}}
+/* Admin area: balanced, full-width sections */
+.columns {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 22px;
+    align-items: start;
+}
+.columns > .panel {
+    width: 100%;
+    min-width: 0;
+    padding: 24px;
+    border: 1px solid #dbe4f0;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 5px 18px rgba(30, 55, 90, .06);
+}
+.columns > .panel h2 {
+    margin: 0 0 12px;
+    color: #1e2d45;
+    font-size: 23px;
+}
+.columns > .panel h3 {
+    margin: 26px 0 8px;
+    padding-top: 18px;
+    border-top: 1px solid #e6edf5;
+    color: #26364f;
+    font-size: 18px;
+}
+.columns > .panel > p { color: #64748b; }
+
+/* Seller profile forms */
+.columns .form-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 15px;
+    align-items: start;
+}
+.columns .form-grid .wide { grid-column: 1 / -1; }
+.columns label {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+    color: #34445c;
+    font-size: 13px;
+    font-weight: 600;
+}
+.columns input,
+.columns select,
+.columns textarea {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding: 10px 12px;
+    border: 1px solid #cbd7e6;
+    border-radius: 8px;
+    background: #fff;
+    color: #1e293b;
+    font: inherit;
+}
+.columns textarea { min-height: 85px; resize: vertical; }
+.columns input:focus,
+.columns select:focus,
+.columns textarea:focus {
+    outline: 2px solid rgba(37, 99, 235, .16);
+    border-color: #2563eb;
+}
+
+/* Password controls: labels above fields, no squeezed horizontal layout */
+.password-change-form {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    align-items: end;
+    margin: 18px 0 28px;
+    padding: 18px;
+    border: 1px solid #e1e9f3;
+    border-radius: 12px;
+    background: #f8faff;
+}
+.password-change-form label { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.password-field { display: flex; align-items: stretch; gap: 7px; width: 100%; min-width: 0; }
+.password-field input { flex: 1; min-width: 0; width: 100%; }
+.password-toggle { flex: 0 0 auto; white-space: nowrap; padding: 8px 12px !important; font-size: 12px; }
+.password-change-form > button { min-height: 42px; white-space: nowrap; }
+
+/* Create-user form */
+.create-user-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    align-items: end;
+    margin: 16px 0 24px;
+    padding: 18px;
+    border: 1px solid #e1e9f3;
+    border-radius: 12px;
+    background: #f8faff;
+}
+.create-user-form label { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.create-user-form > button { min-height: 42px; justify-self: start; }
+
+/* User table stays readable and scrolls instead of crushing columns */
+.columns .table-wrap { width: 100%; overflow-x: auto; border: 1px solid #e1e8f0; border-radius: 10px; }
+.columns .table-wrap table { width: 100%; min-width: 1050px; border-collapse: collapse; }
+.columns .table-wrap th { background: #eff5fc; color: #25364e; text-align: left; padding: 13px 12px; white-space: nowrap; }
+.columns .table-wrap td { padding: 12px; border-top: 1px solid #e5ebf3; vertical-align: middle; }
+.columns .table-wrap td input,
+.columns .table-wrap td select { min-width: 125px; }
+.columns .table-wrap td .password-field { min-width: 220px; }
+.columns details.panel { padding: 15px; border: 1px solid #e1e8f0; border-radius: 10px; background: #fbfcfe; }
+.columns details summary { cursor: pointer; color: #26364f; }
+
+@media (max-width: 900px) {
+    .password-change-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .columns .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+    .columns > .panel { padding: 15px; }
+    .password-change-form,
+    .create-user-form,
+    .columns .form-grid { grid-template-columns: minmax(0, 1fr); }
+    .password-change-form > button,
+    .create-user-form > button { width: 100%; }
+}
 </style>
 <script>
 document.addEventListener('click', function(event) {
