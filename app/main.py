@@ -637,6 +637,31 @@ def edit_user(
     return RedirectResponse("/#user-management", status_code=303)
 
 
+@app.post("/account/change-password")
+def change_own_password(
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    user=Depends(require_user),
+):
+    """Allow a signed-in user to change their own password after verifying the current one."""
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+    if new_password != confirm_password:
+        raise HTTPException(status_code=400, detail="New password and confirmation do not match")
+    if new_password == current_password:
+        raise HTTPException(status_code=400, detail="New password must be different from the current password")
+
+    with connect() as c:
+        record = c.execute("SELECT password_hash FROM users WHERE id = ?", (int(user["id"]),)).fetchone()
+        if not record or record["password_hash"] != hashpw(current_password):
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+        c.execute("UPDATE users SET password_hash = ? WHERE id = ?", (hashpw(new_password), int(user["id"])))
+        c.commit()
+
+    return RedirectResponse("/?password_changed=1", status_code=303)
+
+
 @app.post("/users/{user_id}/delete")
 def delete_user(user_id: int, user=Depends(require_user)):
     """Admin-only user deletion. Protect current/last admin and invoice history."""
