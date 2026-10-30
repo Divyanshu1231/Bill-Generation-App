@@ -131,9 +131,28 @@
                 <label>Role<select name="role"><option value="user">User</option><option value="admin">Admin</option></select></label>
                 <button type="submit">Create User</button>
             </form>
-            <h3>Registered Users</h3>
-            <ul>{% for usr in users %}<li style="margin-bottom:10px">{{ usr.full_name or usr.username }} ({{ usr.username }}) — {{ usr.role }} — {{ 'Active' if usr.active else 'Inactive' }}{% if usr.id != user.id %}<form method="post" action="/users/{{ usr.id }}/delete" style="display:inline;margin-left:8px" onsubmit="return confirm('Delete user {{ usr.username }}? Users with linked invoices cannot be deleted until those invoices are removed.');"><button type="submit" class="secondary" style="background:#b91c1c;color:white;padding:5px 8px">Delete User</button></form>{% else %}<small>(current account)</small>{% endif %}</li>{% else %}<li>No users found.</li>{% endfor %}</ul>
-            <p><small>Safety: users linked to invoices are protected until their invoice records are deleted. The current admin account and last active admin cannot be deleted.</small></p>
+            <h3 id="user-management">Registered Users / User Management</h3>
+            <p><small>For security, current passwords are not viewable. Admin can set a new password using the reset field below.</small></p>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Full Name</th><th>Username</th><th>Role</th><th>Account Status</th><th>New Password (optional)</th><th>Actions</th></tr></thead>
+                    <tbody>
+                    {% for usr in users %}
+                    <tr>
+                        <form id="user-edit-{{ usr.id }}" method="post" action="/users/{{ usr.id }}/edit"></form>
+                        <td><input form="user-edit-{{ usr.id }}" name="full_name" value="{{ usr.full_name or usr.username }}" required></td>
+                        <td><input form="user-edit-{{ usr.id }}" name="username" value="{{ usr.username }}" required></td>
+                        <td><select form="user-edit-{{ usr.id }}" name="role" {% if usr.id == user.id %}disabled{% endif %}><option value="user" {% if usr.role == 'user' %}selected{% endif %}>User</option><option value="admin" {% if usr.role == 'admin' %}selected{% endif %}>Admin</option></select>{% if usr.id == user.id %}<input form="user-edit-{{ usr.id }}" type="hidden" name="role" value="admin">{% endif %}</td>
+                        <td><select form="user-edit-{{ usr.id }}" name="active" {% if usr.id == user.id %}disabled{% endif %}><option value="1" {% if usr.active %}selected{% endif %}>Active</option><option value="0" {% if not usr.active %}selected{% endif %}>Inactive</option></select>{% if usr.id == user.id %}<input form="user-edit-{{ usr.id }}" type="hidden" name="active" value="1">{% endif %}</td>
+                        <td><input form="user-edit-{{ usr.id }}" type="password" name="new_password" minlength="8" placeholder="Leave blank to keep"></td>
+                        <td style="white-space:nowrap;"><button form="user-edit-{{ usr.id }}" type="submit">Save</button>
+                        {% if usr.id != user.id %}<form method="post" action="/users/{{ usr.id }}/delete" style="display:inline" onsubmit="return confirm('Delete user {{ usr.username }}? Users with linked invoices cannot be deleted until those invoices are removed.');"><button type="submit" class="secondary" style="background:#b91c1c;color:white;padding:5px 8px">Delete</button></form>{% else %}<small>Current account</small>{% endif %}</td>
+                    </tr>
+                    {% else %}<tr><td colspan="6">No users found.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p><small>Safety: users linked to invoices are protected until their invoice records are deleted. The current admin account and last active admin cannot be deactivated, demoted, or deleted.</small></p>
         </section>
     </div>
     {% endif %}
