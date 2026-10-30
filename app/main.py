@@ -588,6 +588,55 @@ def save_qr_upload(qr_file: UploadFile | None) -> str | None:
     return "/static/uploads/" + filename
 
 
+@app.post("/users/{user_id}/edit")
+def edit_user(
+    user_id: int,
+    full_name: str = Form(...),
+    username: str = Form(...),
+    role: str = Form("user"),
+    active: str = Form("1"),
+    new_password: str = Form(""),
+    user=Depends(require_user),
+):
+    """Admin can edit account details and set a new password; existing passwords are never exposed."""
+    admin_only(user)
+    full_name = full_name.strip()
+    username = username.strip()
+    if not full_name or not username:
+        raise HTTPException(status_code=400, detail="Full name and username are required")
+    if role not in ("user", "admin"):
+        raise HTTPException(status_code=400, detail="Invalid role")
+    is_active = 1 if active == "1" else 0
+    if new_password and len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+
+    with connect() as c:
+        target = c.execute("SELECT id, role, active FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not target:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Do not allow an admin to lock themselves out or remove the last active admin.
+        if user_id == int(user["id"]):
+            role = "admin"
+            is_active = 1
+        if target["role"] == "admin" and target["active"] and (role != "admin" or not is_active):
+            admins = c.execute("SELECT COUNT(*) AS n FROM users WHERE role = 'admin' AND active = 1").fetchone()
+            if admins and admins["n"] <= 1:
+                raise HTTPException(status_code=400, detail="Cannot deactivate or demote the last active admin")
+
+        try:
+            if new_password:
+                c.execute("UPDATE users SET full_name = ?, username = ?, role = ?, active = ?, password_hash = ? WHERE id = ?",
+                          (full_name, username, role, is_active, hashpw(new_password), user_id))
+            else:
+                c.execute("UPDATE users SET full_name = ?, username = ?, role = ?, active = ? WHERE id = ?",
+                          (full_name, username, role, is_active, user_id))
+            c.commit()
+        except (sqlite3.IntegrityError, psycopg2.IntegrityError):
+            raise HTTPException(status_code=400, detail="Username already exists")
+    return RedirectResponse("/#user-management", status_code=303)
+
+
 @app.post("/users/{user_id}/delete")
 def delete_user(user_id: int, user=Depends(require_user)):
     """Admin-only user deletion. Protect current/last admin and invoice history."""
