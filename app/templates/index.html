@@ -89,6 +89,7 @@
                 <label>MSME Registration<input name="msme"></label>
                 <label>Email<input type="email" name="email"></label>
                 <label>Phone<input name="phone"></label>
+                <label class="wide">Company Logo (PNG, JPG, WEBP; max 3 MB)<input type="file" name="logo_file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"></label>
                 <label class="wide">QR Code Image (PNG, JPG, WEBP; max 3 MB)<input type="file" name="qr_file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"></label>
                 <div class="wide"><button type="submit">Add Seller</button></div>
             </form>
@@ -107,6 +108,8 @@
                     <label>MSME Registration<input name="msme" value="{{ s.msme or '' }}"></label>
                     <label>Email<input type="email" name="email" value="{{ s.email or '' }}"></label>
                     <label>Phone<input name="phone" value="{{ s.phone or '' }}"></label>
+                    {% if s.company_logo %}<div class="wide"><p>Current company logo:</p><img src="{{ s.company_logo }}" alt="Company logo" style="max-width:180px;max-height:100px;object-fit:contain"></div>{% endif %}
+                    <label class="wide">Replace Company Logo (leave blank to keep current)<input type="file" name="logo_file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"></label>
                     {% if s.qr_code %}<div class="wide"><p>Current QR code:</p><img src="{{ s.qr_code }}" alt="Seller QR code" style="max-width:160px;max-height:160px;object-fit:contain"></div>{% endif %}
                     <label class="wide">Replace QR Code (leave blank to keep current)<input type="file" name="qr_file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"></label>
                     <div class="wide"><button type="submit">Save Seller Changes</button></div>
