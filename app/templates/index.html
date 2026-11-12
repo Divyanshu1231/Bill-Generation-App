@@ -33,7 +33,7 @@
                     <td>{{ i.seller_name }}</td>
                     <td>{{ i.client_name }}</td>
                     <td>{{ i.candidate_name }}</td>
-                    <td>₹{{ "{:,.2f}".format(i.amount or 0) }}</td>
+                    <td>₹{{ "{:,.2f}".format((i.total_amount if i.invoice_type == 'GST' else i.amount) or 0) }}</td>
                     <td>{{ i.full_name or i.username or '—' }}</td>
                     <td style="min-width:190px;white-space:normal;">
                         {% if user.role == 'admin' %}
@@ -59,18 +59,28 @@
 
     <section class="panel">
         <h2>Create Invoice</h2>
-        <form method="post" action="/invoices" class="form-grid">
+        <form method="post" action="/invoices" class="form-grid" id="invoice-create-form">
+            <label>Invoice Type<select name="invoice_type" id="invoice-type"><option value="Non-GST">Non-GST Invoice</option><option value="GST">GST Invoice</option></select></label>
             <label>Voucher No.<input name="invoice_no" placeholder="Leave blank for automatic number"></label>
             <label>Invoice Date<input type="date" name="invoice_date" value="{{ today }}" required></label>
             <label>Seller Profile<select name="seller_id" required><option value="">Select Seller</option>{% for s in sellers %}{% if s.active %}<option value="{{ s.id }}">{{ s.name }}</option>{% endif %}{% endfor %}</select></label>
             <label>Client / Hospital Name<input name="client_name" required></label>
             <label class="wide">Client Address<textarea name="client_address"></textarea></label>
+            <div id="gst-client-fields" class="wide gst-fields" hidden>
+                <div class="gst-grid">
+                    <label>Hospital GSTIN (optional for unregistered client)<input name="client_gstin" maxlength="15" placeholder="15-character GSTIN"></label>
+                    <label>Hospital State <select name="client_state"><option value="">Select State</option>{% for st in indian_states %}<option value="{{ st }}">{{ st }}</option>{% endfor %}</select></label>
+                    <label>GST Rate<input type="text" value="18% (fixed)" readonly><input type="hidden" name="gst_rate" value="18"></label>
+                </div>
+                <p class="gst-hint">GST is set to 18%: same state = CGST 9% + SGST 9%; different states = IGST 18%.</p>
+            </div>
             <label>Candidate Name<input name="candidate_name" required></label>
             <label>Designation<input name="designation"></label>
             <label>Date of Joining<input type="date" name="doj"></label>
             <label>Monthly Salary (₹)<input type="number" name="salary" min="0" step="0.01" value="0"></label>
             <label>Service Description<input name="description" value="Recruitment / Manpower Supply"></label>
-            <label>Amount to be Charged (₹)<input type="number" name="amount" min="0" step="0.01" required></label>
+            <label>Taxable Amount / Amount to be Charged (₹)<input type="number" name="amount" min="0" step="0.01" required></label>
+            <div id="gst-live-preview" class="wide gst-preview" hidden>GST amounts will be calculated when the invoice is created based on Seller State and Hospital State.</div>
             <div class="wide"><button type="submit">Create Invoice</button></div>
         </form>
     </section>
@@ -89,6 +99,8 @@
                 <label>MSME Registration<input name="msme"></label>
                 <label>Email<input type="email" name="email"></label>
                 <label>Phone<input name="phone"></label>
+                <label>Supplier State<select name="state" required>{% for st in indian_states %}<option value="{{ st }}" {% if st == 'Uttar Pradesh' %}selected{% endif %}>{{ st }}</option>{% endfor %}</select></label>
+                <label>Supplier GSTIN<input name="gstin" maxlength="15" placeholder="15-character GSTIN"></label>
                 <label class="wide">Company Logo (PNG, JPG, WEBP; max 3 MB)<input type="file" name="logo_file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"></label>
                 <label class="wide">QR Code Image (PNG, JPG, WEBP; max 3 MB)<input type="file" name="qr_file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"></label>
                 <div class="wide"><button type="submit">Add Seller</button></div>
@@ -108,6 +120,8 @@
                     <label>MSME Registration<input name="msme" value="{{ s.msme or '' }}"></label>
                     <label>Email<input type="email" name="email" value="{{ s.email or '' }}"></label>
                     <label>Phone<input name="phone" value="{{ s.phone or '' }}"></label>
+                    <label>Supplier State<select name="state" required>{% for st in indian_states %}<option value="{{ st }}" {% if (s.state or 'Uttar Pradesh') == st %}selected{% endif %}>{{ st }}</option>{% endfor %}</select></label>
+                    <label>Supplier GSTIN<input name="gstin" maxlength="15" value="{{ s.gstin or '' }}"></label>
                     {% if s.company_logo %}<div class="wide"><p>Current company logo:</p><img src="{{ s.company_logo }}" alt="Company logo" style="max-width:180px;max-height:100px;object-fit:contain"></div>{% endif %}
                     <label class="wide">Replace Company Logo (leave blank to keep current)<input type="file" name="logo_file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"></label>
                     {% if s.qr_code %}<div class="wide"><p>Current QR code:</p><img src="{{ s.qr_code }}" alt="Seller QR code" style="max-width:160px;max-height:160px;object-fit:contain"></div>{% endif %}
@@ -310,6 +324,25 @@ document.addEventListener('click', function(event) {
     field.type = reveal ? 'text' : 'password';
     button.textContent = reveal ? 'Hide' : 'Show';
 });
+</script>
+
+
+<style>
+.gst-fields{padding:16px;border:1px solid #cbd8e8;border-radius:12px;background:#f7faff}
+.gst-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.gst-hint,.gst-preview{font-size:13px;color:#475569;margin:10px 0 0}
+.gst-preview{padding:12px 14px;border-radius:8px;background:#eef5ff;border:1px solid #d5e3f5}
+@media(max-width:700px){.gst-grid{grid-template-columns:1fr}}
+</style>
+<script>
+(function(){
+ const type=document.getElementById('invoice-type');
+ const fields=document.getElementById('gst-client-fields');
+ const preview=document.getElementById('gst-live-preview');
+ if(!type||!fields)return;
+ function toggle(){const gst=type.value==='GST';fields.hidden=!gst;preview.hidden=!gst;}
+ type.addEventListener('change',toggle);toggle();
+})();
 </script>
 
 </body>
