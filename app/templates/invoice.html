@@ -6,47 +6,79 @@
 <title>{{ i.invoice_no }}</title>
 <link rel="stylesheet" href="/static/style.css">
 <style>
+:root{--navy:#172b4d;--blue:#244f9e;--ink:#243247;--muted:#64748b;--line:#d7e0eb;--pale:#f3f7fc}
 *{box-sizing:border-box}
-body{margin:0;background:#f4f5f7;color:#222;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.3}
-.invoice{width:100%;max-width:900px;margin:18px auto;background:#fff;padding:22px;border:1px solid #d4d9df}
-.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
-.invoice-head{display:grid;grid-template-columns:1fr 1fr;gap:18px;border:1px solid #9aa9ba;padding:14px}
+html,body{margin:0;padding:0;background:#eef2f7;color:var(--ink);font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.35}
+.invoice{width:100%;max-width:900px;margin:24px auto;padding:28px 32px;background:#fff;border:1px solid #dce4ee;border-radius:10px;box-shadow:0 8px 28px rgba(25,45,75,.08)}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
+.toolbar a{color:var(--blue);font-weight:700;text-decoration:none}
+.toolbar button{border:0;border-radius:7px;padding:10px 16px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer}
+.invoice-head{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(190px,.8fr);gap:24px;padding:20px 22px;border:1px solid var(--line);border-top:5px solid var(--navy);border-radius:8px 8px 0 0;background:#fff}
 .invoice-head section{min-width:0;overflow-wrap:anywhere}
-.invoice h3{font-size:18px;line-height:1.2;margin:3px 0 10px}
-.invoice p{margin:5px 0}
-.from-label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:0 0 5px!important;color:#444}
-.voucher p{margin:0 0 10px}
-.billto{border:1px solid #9aa9ba;border-top:0;padding:12px 14px;margin:0}
-.billto p{margin:5px 0}
-.qr-wrap{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin:8px 0}
-.qr-wrap img{width:74px;height:74px;max-width:74px;max-height:74px;object-fit:contain}
-.qr-wrap p{font-size:11px;margin:0}
-.invoice table{width:100%;border-collapse:collapse;margin-top:8px;table-layout:fixed}
-.invoice th,.invoice td{border:1px solid #aeb6bf;padding:8px;text-align:left;vertical-align:top;overflow-wrap:anywhere}
-.invoice th{font-weight:700}
-.invoice th:last-child,.invoice td:last-child{width:25%}
-.invoice td p{margin:4px 0}
-.invoice .muted{margin-top:10px;font-size:10px}
-@media(max-width:600px){.invoice{margin:0;padding:12px}.invoice-head{gap:10px;padding:10px}.invoice h3{font-size:15px}.invoice th,.invoice td{padding:6px}}
-@page{size:A4 portrait;margin:8mm}
+.from-label{margin:0 0 8px!important;color:var(--muted);font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase}
+.seller-logo{display:block;max-width:155px;max-height:68px;object-fit:contain;object-position:left center;margin:0 0 9px}
+.invoice h3{margin:0 0 8px;color:var(--navy);font-size:20px;line-height:1.2}
+.invoice p{margin:4px 0}
+.seller-details{color:#475569;font-size:11px;line-height:1.4}
+.voucher{padding:3px 0 3px 18px;border-left:1px solid var(--line)}
+.voucher .doc-title{margin:0 0 12px;color:var(--navy);font-size:19px;font-weight:800;letter-spacing:.6px}
+.voucher .meta{margin:0 0 9px}
+.voucher .meta strong{display:block;margin-bottom:2px;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+.voucher .meta span{font-size:13px;font-weight:700;color:var(--ink)}
+.bill-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;padding:15px 18px;border:1px solid var(--line);border-top:0;background:#fbfcfe}
+.billto{min-width:0;overflow-wrap:anywhere}
+.section-label{display:block;margin-bottom:7px;color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase}
+.billto .client-name{margin:0 0 4px;color:var(--navy);font-size:15px;font-weight:700}
+.billto p{margin:3px 0;color:#475569}
+.qr-wrap{display:flex;align-items:center;gap:10px;padding-left:12px}
+.qr-wrap img{display:block;width:104px;height:104px;max-width:104px;max-height:104px;object-fit:contain;padding:4px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.qr-wrap p{max-width:65px;color:var(--muted);font-size:10px;font-weight:700;line-height:1.25}
+.invoice-table{width:100%;margin-top:17px;border-collapse:separate;border-spacing:0;table-layout:fixed;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.invoice-table th,.invoice-table td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;overflow-wrap:anywhere}
+.invoice-table thead th{background:var(--navy);color:#fff;font-size:11px;font-weight:700;letter-spacing:.3px}
+.invoice-table th:last-child,.invoice-table td:last-child{width:26%;text-align:right;white-space:nowrap}
+.invoice-table tbody tr:last-child td,.invoice-table tbody tr:last-child th{border-bottom:0}
+.invoice-table .service-title{color:var(--navy);font-weight:700}
+.invoice-table .service-meta{margin-top:6px;color:#526176;font-size:11px}
+.invoice-table .service-meta p{margin:3px 0}
+.invoice-table .tax-row td{background:#fbfcfe;color:#475569;font-size:12px}
+.invoice-table .total-row th{background:#edf3fb;color:var(--navy);font-size:14px;font-weight:800;border-top:1px solid #cbd8e8}
+.invoice-footer{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;margin-top:18px;padding-top:10px;border-top:1px solid var(--line);color:var(--muted);font-size:10px}
+.invoice-footer .thankyou{color:var(--navy);font-weight:700}
+@media(max-width:620px){.invoice{margin:0;padding:14px;border-radius:0}.invoice-head{grid-template-columns:1fr;gap:12px;padding:15px}.voucher{padding:12px 0 0;border-left:0;border-top:1px solid var(--line)}.bill-row{grid-template-columns:1fr}.qr-wrap{justify-content:flex-start;padding:8px 0 0}.invoice-table th,.invoice-table td{padding:7px 8px;font-size:11px}.invoice-table th:last-child,.invoice-table td:last-child{width:31%}.invoice-footer{display:block}}
+@page{size:A4 portrait;margin:9mm}
 @media print{
- html,body{width:100%;height:auto;background:#fff!important;margin:0!important;padding:0!important;font-size:9px;line-height:1.15;-webkit-print-color-adjust:exact;print-color-adjust:exact}
- .invoice{width:100%;max-width:none;margin:0;padding:0;border:0;box-shadow:none}
+ html,body{width:100%;height:auto!important;margin:0!important;padding:0!important;background:#fff!important;font-size:9px;line-height:1.2;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .invoice{width:100%;max-width:none;margin:0;padding:0;border:0;border-radius:0;box-shadow:none}
  .no-print{display:none!important}
- .invoice-head{gap:12px;padding:8px;border:1px solid #8d9bad;break-inside:avoid}
- .invoice h3{font-size:13px;margin:2px 0 6px}
- .invoice p{margin:3px 0}
- .from-label{font-size:9px;margin-bottom:3px!important}
- .voucher p{margin-bottom:6px}
- .billto{padding:7px 8px;break-inside:avoid}
- .qr-wrap{margin:4px 0;gap:6px;break-inside:avoid}
- .qr-wrap img{width:48px;height:48px;max-width:48px;max-height:48px}
- .qr-wrap p{font-size:8px}
- .invoice table{margin-top:5px;break-inside:avoid}
- .invoice tr{break-inside:avoid;page-break-inside:avoid}
- .invoice th,.invoice td{padding:5px;font-size:9px}
- .invoice td p{margin:2px 0}
- .invoice .muted{margin-top:6px;font-size:8px}
+ .invoice-head{grid-template-columns:minmax(0,1.5fr) minmax(170px,.8fr);gap:14px;padding:11px 13px;border-radius:0;border-top-width:4px;break-inside:avoid;page-break-inside:avoid}
+ .from-label{font-size:8px;margin-bottom:5px!important}
+ .seller-logo{max-width:130px;max-height:52px;margin-bottom:5px}
+ .invoice h3{font-size:15px;margin-bottom:5px}
+ .seller-details{font-size:8px;line-height:1.22}
+ .invoice p{margin:2px 0}
+ .voucher{padding-left:12px}
+ .voucher .doc-title{font-size:15px;margin-bottom:7px}
+ .voucher .meta{margin-bottom:5px}
+ .voucher .meta strong{font-size:8px}
+ .voucher .meta span{font-size:10px}
+ .bill-row{grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:9px 12px;break-inside:avoid;page-break-inside:avoid}
+ .section-label{font-size:8px;margin-bottom:4px}
+ .billto .client-name{font-size:11px}
+ .billto p{font-size:8px;margin:2px 0}
+ .qr-wrap{gap:7px;padding-left:8px}
+ .qr-wrap img{width:82px;height:82px;max-width:82px;max-height:82px;padding:3px}
+ .qr-wrap p{font-size:8px;max-width:48px}
+ .invoice-table{margin-top:10px;border-radius:0;break-inside:auto}
+ .invoice-table thead{display:table-header-group}
+ .invoice-table tr{height:auto!important;break-inside:avoid!important;page-break-inside:avoid!important}
+ .invoice-table th,.invoice-table td{height:auto!important;padding:6px 8px;font-size:8px;line-height:1.2}
+ .invoice-table th:last-child,.invoice-table td:last-child{width:26%}
+ .invoice-table .service-meta{font-size:8px;margin-top:4px}
+ .invoice-table .service-meta p{margin:2px 0}
+ .invoice-table .tax-row td{font-size:8px}
+ .invoice-table .total-row th{font-size:10px}
+ .invoice-footer{margin-top:10px;padding-top:6px;font-size:8px;break-inside:avoid;page-break-inside:avoid}
 }
 </style>
 </head>
@@ -57,56 +89,70 @@ body{margin:0;background:#f4f5f7;color:#222;font-family:Arial,Helvetica,sans-ser
   <div class="invoice-head">
     <section>
       <p class="from-label">From</p>
-      {% if i.company_logo %}<img src="{{ i.company_logo }}" alt="Company logo" style="max-width:125px;max-height:55px;object-fit:contain;margin-bottom:6px">{% endif %}
+      {% if i.company_logo %}<img class="seller-logo" src="{{ i.company_logo }}" alt="Company logo">{% endif %}
       <h3>{{ i.seller_name }}</h3>
-      <p>{{ i.seller_address or '' }}</p>
-      {% if i.invoice_type == 'GST' %}<p><b>GSTIN:</b> {{ i.seller_gstin or '' }}</p><p><b>State:</b> {{ i.seller_state or '' }}</p>{% endif %}
-      {% if i.email %}<p>Email: {{ i.email }}</p>{% endif %}
-      {% if i.phone %}<p>Phone: {{ i.phone }}</p>{% endif %}
-      {% if i.pan %}<p>PAN: {{ i.pan }}</p>{% endif %}
-      {% if i.msme %}<p>MSME: {{ i.msme }}</p>{% endif %}
-      {% if i.bank_name %}<p>Bank: {{ i.bank_name }}</p>{% endif %}
-      {% if i.bank_account %}<p>Account No.: {{ i.bank_account }}</p>{% endif %}
-      {% if i.ifsc %}<p>IFSC: {{ i.ifsc }}</p>{% endif %}
+      <div class="seller-details">
+        <p>{{ i.seller_address or '' }}</p>
+        {% if i.invoice_type == 'GST' %}<p><b>GSTIN:</b> {{ i.seller_gstin or '' }} &nbsp; <b>State:</b> {{ i.seller_state or '' }}</p>{% endif %}
+        {% if i.email %}<p><b>Email:</b> {{ i.email }}</p>{% endif %}
+        {% if i.phone %}<p><b>Phone:</b> {{ i.phone }}</p>{% endif %}
+        {% if i.pan %}<p><b>PAN:</b> {{ i.pan }}</p>{% endif %}
+        {% if i.msme %}<p><b>MSME:</b> {{ i.msme }}</p>{% endif %}
+        {% if i.bank_name %}<p><b>Bank:</b> {{ i.bank_name }}</p>{% endif %}
+        {% if i.bank_account %}<p><b>Account No.:</b> {{ i.bank_account }}</p>{% endif %}
+        {% if i.ifsc %}<p><b>IFSC:</b> {{ i.ifsc }}</p>{% endif %}
+      </div>
     </section>
     <section class="voucher">
-      <p><b>Voucher No.</b><br>{{ i.invoice_no }}</p>
-      <p><b>Date</b><br>{{ i.invoice_date }}</p>
-      <p><b>Created by</b><br>{{ i.full_name or i.username }}</p>
+      <p class="doc-title">INVOICE</p>
+      <p class="meta"><strong>Voucher No.</strong><span>{{ i.invoice_no }}</span></p>
+      <p class="meta"><strong>Date</strong><span>{{ i.invoice_date }}</span></p>
+      <p class="meta"><strong>Created by</strong><span>{{ i.full_name or i.username }}</span></p>
     </section>
   </div>
 
-  {% if i.qr_code %}<div class="qr-wrap"><img src="{{ i.qr_code }}" alt="Seller QR code"><p>Scan to pay</p></div>{% endif %}
+  <div class="bill-row">
+    <section class="billto">
+      <span class="section-label">Bill To · Client / Hospital</span>
+      <p class="client-name">{{ i.client_name }}</p>
+      <p>{{ i.client_address or '' }}</p>
+      {% if i.invoice_type == 'GST' %}<p><b>GSTIN:</b> {{ i.client_gstin or 'Unregistered' }}</p><p><b>Place of Supply:</b> {{ i.place_of_supply }}</p>{% endif %}
+    </section>
+    {% if i.qr_code %}<div class="qr-wrap"><img src="{{ i.qr_code }}" alt="Seller QR code"><p>Scan to pay</p></div>{% endif %}
+  </div>
 
-  <section class="billto">
-    <b>Client / Hospital</b>
-    <p>{{ i.client_name }}</p>
-    <p>{{ i.client_address or '' }}</p>
-    {% if i.invoice_type == 'GST' %}<p><b>GSTIN:</b> {{ i.client_gstin or 'Unregistered' }}</p><p><b>Place of Supply:</b> {{ i.place_of_supply }} </p>{% endif %}
-  </section>
-
-  <table>
+  <table class="invoice-table">
     <thead><tr><th>Description of Services</th><th>Amount</th></tr></thead>
     <tbody>
       <tr>
         <td>
-          <b>{{ i.description }}</b>
-          <p>Candidate name: {{ i.candidate_name }}</p>
-          <p>Designation: {{ i.designation or '—' }}</p>
-          <p>Monthly salary: ₹{{ "{:,.2f}".format(i.salary or 0) }}</p>
-          <p>Date of Joining (DOJ): {{ i.doj or '—' }}</p>
+          <div class="service-title">{{ i.description }}</div>
+          <div class="service-meta">
+            <p>Candidate name: {{ i.candidate_name }}</p>
+            <p>Designation: {{ i.designation or '—' }}</p>
+            <p>Monthly salary: ₹{{ "{:,.2f}".format(i.salary or 0) }}</p>
+            <p>Date of Joining (DOJ): {{ i.doj or '—' }}</p>
+          </div>
         </td>
         <td>₹{{ "{:,.2f}".format(i.amount or 0) }}</td>
       </tr>
       {% if i.invoice_type == 'GST' %}
-      {% if (i.cgst_amount or 0) > 0 %}<tr><td>CGST ({{ (i.gst_rate or 18) / 2 }}%)</td><td>₹{{ "{:,.2f}".format(i.cgst_amount or 0) }}</td></tr><tr><td>SGST ({{ (i.gst_rate or 18) / 2 }}%)</td><td>₹{{ "{:,.2f}".format(i.sgst_amount or 0) }}</td></tr>{% endif %}
-      {% if (i.igst_amount or 0) > 0 %}<tr><td>IGST ({{ i.gst_rate or 18 }}%)</td><td>₹{{ "{:,.2f}".format(i.igst_amount or 0) }}</td></tr>{% endif %}
-      <tr><th>Grand Total</th><th>₹{{ "{:,.2f}".format(i.total_amount or 0) }}</th></tr>
-      {% else %}<tr><th>Total</th><th>₹{{ "{:,.2f}".format(i.amount or 0) }}</th></tr>{% endif %}
+        {% if (i.cgst_amount or 0) > 0 %}
+        <tr class="tax-row"><td>CGST ({{ (i.gst_rate or 18) / 2 }}%)</td><td>₹{{ "{:,.2f}".format(i.cgst_amount or 0) }}</td></tr>
+        <tr class="tax-row"><td>SGST ({{ (i.gst_rate or 18) / 2 }}%)</td><td>₹{{ "{:,.2f}".format(i.sgst_amount or 0) }}</td></tr>
+        {% endif %}
+        {% if (i.igst_amount or 0) > 0 %}<tr class="tax-row"><td>IGST ({{ i.gst_rate or 18 }}%)</td><td>₹{{ "{:,.2f}".format(i.igst_amount or 0) }}</td></tr>{% endif %}
+        <tr class="total-row"><th>Grand Total</th><th>₹{{ "{:,.2f}".format(i.total_amount or 0) }}</th></tr>
+      {% else %}
+        <tr class="total-row"><th>Total</th><th>₹{{ "{:,.2f}".format(i.amount or 0) }}</th></tr>
+      {% endif %}
     </tbody>
   </table>
 
-  <p class="muted">Invoice Type: {{ i.invoice_type or 'Non-GST' }} · This is a computer-generated estimate and does not require a signature.</p>
+  <div class="invoice-footer">
+    <span>This is a computer-generated estimate and does not require a signature.</span>
+    <span class="thankyou">Thank you for your business.</span>
+  </div>
 </main>
 </body>
 </html>
