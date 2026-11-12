@@ -34,6 +34,9 @@ USE_POSTGRES = bool(DATABASE_URL)
 
 app = FastAPI(title="Recruitment Invoice Manager")
 
+INDIAN_STATES = ['Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry']
+
+
 app.add_middleware(
     SessionMiddleware,
     secret_key=APP_SECRET,
@@ -214,6 +217,8 @@ def init_db():
                 msme TEXT,
                 email TEXT,
                 phone TEXT,
+                state TEXT DEFAULT 'Uttar Pradesh',
+                gstin TEXT,
                 qr_code TEXT,
                 active INTEGER NOT NULL DEFAULT 1
             );
@@ -235,6 +240,15 @@ def init_db():
                 status TEXT DEFAULT 'Draft',
                 remark TEXT DEFAULT '',
                 payment_status TEXT NOT NULL DEFAULT 'Due',
+                invoice_type TEXT NOT NULL DEFAULT 'Non-GST',
+                client_gstin TEXT,
+                client_state TEXT,
+                place_of_supply TEXT,
+                gst_rate REAL DEFAULT 18,
+                cgst_amount REAL DEFAULT 0,
+                sgst_amount REAL DEFAULT 0,
+                igst_amount REAL DEFAULT 0,
+                total_amount REAL DEFAULT 0,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(created_by) REFERENCES users(id),
                 FOREIGN KEY(seller_id) REFERENCES sellers(id)
@@ -265,6 +279,10 @@ def init_db():
             c.execute("ALTER TABLE sellers ADD COLUMN qr_code TEXT")
         if "company_logo" not in seller_columns:
             c.execute("ALTER TABLE sellers ADD COLUMN company_logo TEXT")
+        if "state" not in seller_columns:
+            c.execute("ALTER TABLE sellers ADD COLUMN state TEXT DEFAULT 'Uttar Pradesh'")
+        if "gstin" not in seller_columns:
+            c.execute("ALTER TABLE sellers ADD COLUMN gstin TEXT")
 
         invoice_columns = {
             row["name"] for row in c.execute("PRAGMA table_info(invoices)").fetchall()
@@ -273,6 +291,21 @@ def init_db():
             c.execute("ALTER TABLE invoices ADD COLUMN remark TEXT DEFAULT ''")
         if "payment_status" not in invoice_columns:
             c.execute("ALTER TABLE invoices ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'Due'")
+        invoice_gst_columns = {
+            "invoice_type": "TEXT NOT NULL DEFAULT 'Non-GST'",
+            "client_gstin": "TEXT",
+            "client_state": "TEXT",
+            "place_of_supply": "TEXT",
+            "gst_rate": "REAL DEFAULT 18",
+            "cgst_amount": "REAL DEFAULT 0",
+            "sgst_amount": "REAL DEFAULT 0",
+            "igst_amount": "REAL DEFAULT 0",
+            "total_amount": "REAL DEFAULT 0"
+        }
+        for column_name, column_type in invoice_gst_columns.items():
+            if column_name not in invoice_columns:
+                c.execute(f"ALTER TABLE invoices ADD COLUMN {column_name} {column_type}")
+        c.execute("UPDATE invoices SET total_amount = amount WHERE total_amount IS NULL OR total_amount = 0")
 
         # Existing users initially use their username as full name.
         c.execute("""
@@ -452,7 +485,8 @@ def home(request: Request):
             "invoices": invoices,
             "sellers": sellers,
             "users": users,
-            "today": date.today().isoformat()
+            "today": date.today().isoformat(),
+            "indian_states": INDIAN_STATES
         
         })
 
@@ -704,19 +738,28 @@ def create_seller(
     msme: str = Form(""),
     email: str = Form(""),
     phone: str = Form(""),
+    state: str = Form("Uttar Pradesh"),
+    gstin: str = Form(""),
     qr_file: UploadFile | None = File(None),
+    logo_file: UploadFile | None = File(None),
     user=Depends(require_user)
 ):
     admin_only(user)
+    if state not in INDIAN_STATES:
+        raise HTTPException(400, "Select a valid seller state")
+    gstin = gstin.strip().upper()
+    if gstin and not re.fullmatch(r"[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]", gstin):
+        raise HTTPException(400, "Supplier GSTIN format is invalid")
     qr_code = save_qr_upload(qr_file)
+    company_logo = save_qr_upload(logo_file)
     with connect() as c:
         c.execute("""
             INSERT INTO sellers
-                (name, address, bank_account, bank_name, ifsc, pan, msme, email, phone, qr_code)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (name, address, bank_account, bank_name, ifsc, pan, msme, email, phone, state, gstin, qr_code, company_logo)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             name.strip(), address, bank_account, bank_name, ifsc,
-            pan, msme, email, phone, qr_code
+            pan, msme, email, phone, state, gstin.strip().upper(), qr_code, company_logo
         ))
         c.commit()
     return RedirectResponse("/", status_code=303)
@@ -735,11 +778,18 @@ def edit_seller(
     msme: str = Form(""),
     email: str = Form(""),
     phone: str = Form(""),
+    state: str = Form("Uttar Pradesh"),
+    gstin: str = Form(""),
     qr_file: UploadFile | None = File(None),
     logo_file: UploadFile | None = File(None),
     user=Depends(require_user)
 ):
     admin_only(user)
+    if state not in INDIAN_STATES:
+        raise HTTPException(400, "Select a valid seller state")
+    gstin = gstin.strip().upper()
+    if gstin and not re.fullmatch(r"[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]", gstin):
+        raise HTTPException(400, "Supplier GSTIN format is invalid")
     with connect() as c:
         existing = c.execute("SELECT * FROM sellers WHERE id = ?", (seller_id,)).fetchone()
         if not existing:
@@ -748,10 +798,10 @@ def edit_seller(
         company_logo = save_qr_upload(logo_file) or existing["company_logo"]
         c.execute("""
             UPDATE sellers SET name=?, address=?, bank_account=?, bank_name=?,
-                ifsc=?, pan=?, msme=?, email=?, phone=?, qr_code=?, company_logo=?
+                ifsc=?, pan=?, msme=?, email=?, phone=?, state=?, gstin=?, qr_code=?, company_logo=?
             WHERE id=?
         """, (name.strip(), address, bank_account, bank_name, ifsc, pan,
-              msme, email, phone, qr_code, company_logo, seller_id))
+              msme, email, phone, state, gstin.strip().upper(), qr_code, company_logo, seller_id))
         c.commit()
     return RedirectResponse("/#seller-profiles", status_code=303)
 
@@ -795,90 +845,70 @@ def create_invoice(
     salary: float = Form(0),
     description: str = Form("Recruitment / Manpower Supply"),
     amount: float = Form(...),
+    invoice_type: str = Form("Non-GST"),
+    client_gstin: str = Form(""),
+    client_state: str = Form(""),
+    gst_rate: float = Form(18),
     user=Depends(require_user)
 ):
     if salary < 0 or amount < 0:
-        raise HTTPException(
-            status_code=400,
-            detail="Salary and amount cannot be negative"
-        )
+        raise HTTPException(400, "Salary and amount cannot be negative")
+    if invoice_type not in ("GST", "Non-GST"):
+        raise HTTPException(400, "Invalid invoice type")
+
+    cgst_amount = sgst_amount = igst_amount = 0.0
+    place_of_supply = client_state.strip() if client_state else ""
+    total_amount = round(amount, 2)
 
     with connect() as c:
-
-        seller = c.execute("""
-            SELECT id FROM sellers
-            WHERE id = ? AND active = 1
-        """, (seller_id,)).fetchone()
-
+        seller = c.execute("SELECT * FROM sellers WHERE id = ? AND active = 1", (seller_id,)).fetchone()
         if not seller:
-            raise HTTPException(
-                status_code=400,
-                detail="Select a valid seller"
-            )
+            raise HTTPException(400, "Select a valid seller")
 
-        # Auto-generate when invoice number is left blank.
+        if invoice_type == "GST":
+            if not seller["gstin"]:
+                raise HTTPException(400, "Add Seller GSTIN in Seller Profile before creating a GST invoice")
+            if not seller["state"] or client_state not in INDIAN_STATES:
+                raise HTTPException(400, "Select valid Supplier and Hospital states")
+            if round(float(gst_rate), 2) != 18.0:
+                raise HTTPException(400, "This invoice setup is configured for 18% GST")
+            if client_gstin and not re.fullmatch(r"[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]", client_gstin.strip().upper()):
+                raise HTTPException(400, "Hospital GSTIN format is invalid")
+            place_of_supply = client_state
+            tax = round(amount * float(gst_rate) / 100, 2)
+            if seller["state"].strip().lower() == client_state.strip().lower():
+                cgst_amount = round(tax / 2, 2)
+                sgst_amount = round(tax - cgst_amount, 2)
+            else:
+                igst_amount = tax
+            total_amount = round(amount + cgst_amount + sgst_amount + igst_amount, 2)
+
         if not invoice_no.strip():
-            full_name = (
-                user["full_name"] or user["username"]
-            )
-            invoice_no = generate_invoice_number(
-                full_name,
-                c
-            )
+            invoice_no = generate_invoice_number(user["full_name"] or user["username"], c)
         else:
             invoice_no = invoice_no.strip()
 
         try:
             cursor = c.execute("""
                 INSERT INTO invoices (
-                    invoice_no,
-                    invoice_date,
-                    created_by,
-                    seller_id,
-                    client_name,
-                    client_address,
-                    candidate_name,
-                    designation,
-                    doj,
-                    salary,
-                    description,
-                    amount
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    invoice_no, invoice_date, created_by, seller_id, client_name,
+                    client_address, candidate_name, designation, doj, salary,
+                    description, amount, invoice_type, client_gstin, client_state,
+                    place_of_supply, gst_rate, cgst_amount, sgst_amount, igst_amount, total_amount
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                invoice_no,
-                invoice_date,
-                user["id"],
-                seller_id,
-                client_name,
-                client_address,
-                candidate_name,
-                designation,
-                doj,
-                salary,
-                description,
-                amount
+                invoice_no, invoice_date, user["id"], seller_id, client_name,
+                client_address, candidate_name, designation, doj, salary,
+                description, amount, invoice_type, client_gstin.strip().upper(),
+                client_state, place_of_supply, float(gst_rate), cgst_amount,
+                sgst_amount, igst_amount, total_amount
             ))
-
             invoice_id = cursor.lastrowid
-
-            c.execute("""
-                INSERT INTO audit
-                    (invoice_id, user_id, action)
-                VALUES (?, ?, ?)
-            """, (
-                invoice_id,
-                user["id"],
-                "created"
-            ))
-
+            c.execute("INSERT INTO audit (invoice_id, user_id, action) VALUES (?, ?, ?)",
+                      (invoice_id, user["id"], "created"))
             c.commit()
-
         except (sqlite3.IntegrityError, psycopg2.IntegrityError):
-            raise HTTPException(
-                status_code=400,
-                detail="Invoice number already exists"
-            )
+            raise HTTPException(400, "Invoice number already exists")
 
     return RedirectResponse("/", status_code=303)
 
@@ -1040,6 +1070,8 @@ def invoice_view(
                 s.msme,
                 s.email,
                 s.phone,
+                s.state AS seller_state,
+                s.gstin AS seller_gstin,
                 s.qr_code,
                 s.company_logo,
                 u.username,
