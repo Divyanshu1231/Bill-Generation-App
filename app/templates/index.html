@@ -63,7 +63,7 @@
             <label>Invoice Type<select name="invoice_type" id="invoice-type"><option value="Non-GST">Non-GST Invoice</option><option value="GST">GST Invoice</option></select></label>
             <label>Voucher No.<input name="invoice_no" placeholder="Leave blank for automatic number"></label>
             <label>Invoice Date<input type="date" name="invoice_date" value="{{ today }}" required></label>
-            <label>Seller Profile<select name="seller_id" required><option value="">Select Seller</option>{% for s in sellers %}{% if s.active %}<option value="{{ s.id }}">{{ s.name }}</option>{% endif %}{% endfor %}</select></label>
+            <label>Seller Profile<select name="seller_id" id="invoice-seller-select" required><option value="">Select Seller</option>{% for s in sellers %}{% if s.active %}<option value="{{ s.id }}">{{ s.name }}</option>{% endif %}{% endfor %}</select></label>
             <label>Client / Hospital Name<input name="client_name" required></label>
             <label class="wide">Client Address<textarea name="client_address"></textarea></label>
             <div id="gst-client-fields" class="wide gst-fields" hidden>
@@ -339,9 +339,23 @@ document.addEventListener('click', function(event) {
  const type=document.getElementById('invoice-type');
  const fields=document.getElementById('gst-client-fields');
  const preview=document.getElementById('gst-live-preview');
+ const seller=document.getElementById('invoice-seller-select');
  if(!type||!fields)return;
- function toggle(){const gst=type.value==='GST';fields.hidden=!gst;preview.hidden=!gst;}
- type.addEventListener('change',toggle);toggle();
+ function chooseSpaceConsultant(){
+   if(!seller)return;
+   const match=Array.from(seller.options).find(option =>
+     option.value && option.textContent.trim().toLowerCase()==='space consultant'
+   );
+   if(match) seller.value=match.value;
+ }
+ function toggle(){
+   const gst=type.value==='GST';
+   fields.hidden=!gst;
+   if(preview) preview.hidden=!gst;
+   if(gst) chooseSpaceConsultant();
+ }
+ type.addEventListener('change',toggle);
+ toggle();
 })();
 </script>
 
